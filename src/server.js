@@ -1,3 +1,8 @@
+bash
+
+cat /home/claude/potrack-server/src/server.js
+Output
+
 // ============================================================
 // POTrack — Server Entry Point
 // ============================================================
@@ -17,6 +22,9 @@ const xeroRouter   = require('./xero');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust Railway's proxy so secure cookies work correctly
+app.set('trust proxy', 1);
+
 // ---- Middleware ---------------------------------------------
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -27,23 +35,24 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
   resave: false,
   saveUninitialized: false,
+  name: 'potrack.sid',
   cookie: {
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    maxAge: 30 * 24 * 60 * 60 * 1000,
     httpOnly: true,
+    sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
   }
 }));
 
 // ---- Routes ------------------------------------------------
-app.use('/auth',         authRouter);
-app.use('/auth/xero',    xeroRouter);           // OAuth flow (no auth required)
-app.use('/api/xero',     requireAuth, xeroRouter);  // API calls (auth required)
-app.use('/api',          requireAuth, apiRouter);
+app.use('/auth',      authRouter);
+app.use('/auth/xero', xeroRouter);
+app.use('/api/xero',  requireAuth, xeroRouter);
+app.use('/api',       requireAuth, apiRouter);
 
 // ---- Serve frontend ----------------------------------------
 app.use(express.static(path.join(__dirname, '../public')));
 
-// All other routes serve the SPA
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
