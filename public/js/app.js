@@ -311,37 +311,189 @@ function updateXeroUI() {
 }
 
 async function renderSettings() {
-  const s = state.settings;
-  document.getElementById('setting-company').value  = s.company || '';
-  document.getElementById('setting-currency').value = s.currency || 'GBP';
-  document.getElementById('btn-disconnect').addEventListener('click', async () => {
-    if (!confirm('Disconnect from Xero?')) return;
-    await post('/api/xero/disconnect');
-    state.xero = { connected: false };
-    updateXeroUI(); renderXeroPage();
+  // Settings tabs
+  document.querySelectorAll('.stab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.stab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.stab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('stab-' + btn.dataset.stab).classList.add('active');
+    });
   });
+
+  // Show admin tab if admin
   if (state.user?.role === 'admin') {
-    document.getElementById('admin-panel').style.display = 'block';
-    const users = await get('/api/users');
-    document.getElementById('users-list').innerHTML = `<table class="users-table">${users.map(u =>
-      `<tr><td>${u.name}</td><td style="color:var(--txt3)">${u.email}</td><td>${badge(u.role)}</td>
-       <td>${u.id !== state.user.id ? `<button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">Remove</button>` : ''}</td></tr>`
-    ).join('')}</table>`;
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'inline-block');
+  }
+
+  // Profile tab
+  document.getElementById('prof-name').value  = state.user?.name  || '';
+  document.getElementById('prof-email').value = state.user?.email || '';
+
+  document.getElementById('btn-save-profile').onclick = async () => {
+    const errEl = document.getElementById('prof-error');
+    errEl.classList.add('hidden');
+    try {
+      await put('/auth/profile', {
+        name:  document.getElementById('prof-name').value.trim(),
+        email: document.getElementById('prof-email').value.trim(),
+      });
+      state.user.name  = document.getElementById('prof-name').value.trim();
+      state.user.email = document.getElementById('prof-email').value.trim();
+      updateUserUI();
+      errEl.textContent = 'Saved!';
+      errEl.style.background = '#D4F4E4';
+      errEl.style.color = '#166534';
+      errEl.classList.remove('hidden');
+      setTimeout(() => errEl.classList.add('hidden'), 2000);
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.style.background = '';
+      errEl.style.color = '';
+      errEl.classList.remove('hidden');
+    }
+  };
+
+  document.getElementById('btn-change-pw').onclick = async () => {
+    const errEl = document.getElementById('pw-error');
+    const okEl  = document.getElementById('pw-success');
+    errEl.classList.add('hidden');
+    okEl.classList.add('hidden');
+    const current    = document.getElementById('pw-current').value;
+    const newPw      = document.getElementById('pw-new').value;
+    const confirmPw  = document.getElementById('pw-confirm').value;
+    if (newPw !== confirmPw) { errEl.textContent = 'New passwords do not match'; errEl.classList.remove('hidden'); return; }
+    if (newPw.length < 8)    { errEl.textContent = 'Password must be at least 8 characters'; errEl.classList.remove('hidden'); return; }
+    try {
+      await fetch('/auth/password', { method:'PUT', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body: JSON.stringify({ current, newPassword: newPw }) }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error); });
+      okEl.classList.remove('hidden');
+      document.getElementById('pw-current').value = '';
+      document.getElementById('pw-new').value = '';
+      document.getElementById('pw-confirm').value = '';
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.classList.remove('hidden');
+    }
+  };
+
+  // Company tab
+  const s = state.settings;
+  document.getElementById('setting-company').value  = s.company  || '';
+  document.getElementById('setting-currency').value = s.currency || 'GBP';
+
+  document.getElementById('btn-save-settings').onclick = async () => {
+    await post('/api/settings', { key: 'company',  value: document.getElementById('setting-company').value });
+    await post('/api/settings', { key: 'currency', value: document.getElementById('setting-currency').value });
+    state.settings.currency = document.getElementById('setting-currency').value;
+    alert('Settings saved');
+  };
+
+  // Users tab (admin only)
+  if (state.user?.role === 'admin') {
+    await loadUsersTable();
+
+    document.getElementById('btn-add-user').onclick = async () => {
+      const errEl = document.getElementById('new-user-error');
+      errEl.classList.add('hidden');
+      try {
+        await fetch('/auth/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            name:     document.getElementById('new-user-name').value.trim(),
+            email:    document.getElementById('new-user-email').value.trim(),
+            password: document.getElementById('new-user-pw').value,
+            role:     document.getElementById('new-user-role').value,
+          })
+        }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error); return d; });
+        document.getElementById('new-user-name').value  = '';
+        document.getElementById('new-user-email').value = '';
+        document.getElementById('new-user-pw').value    = '';
+        await loadUsersTable();
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+      }
+    };
+  }
+}
+
+async function loadUsersTable() {
+  const users = await fetch('/auth/users', { credentials:'same-origin' }).then(r => r.json());
+  document.getElementById('users-list').innerHTML = `
+    <table class="users-table">
+      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+      <tbody>${users.map(u => `
+        <tr>
+          <td>${u.name} ${u.id === state.user.id ? '<span style="font-size:10px;color:var(--txt3)">(you)</span>' : ''}</td>
+          <td style="color:var(--txt2)">${u.email}</td>
+          <td>
+            ${u.id === state.user.id
+              ? badge(u.role)
+              : `<select class="role-select" onchange="changeRole(${u.id}, this.value)">
+                  <option value="member"  ${u.role==='member'  ? 'selected':''}>Member</option>
+                  <option value="viewer"  ${u.role==='viewer'  ? 'selected':''}>Viewer</option>
+                  <option value="admin"   ${u.role==='admin'   ? 'selected':''}>Admin</option>
+                </select>`
+            }
+          </td>
+          <td>
+            <div class="user-actions">
+              ${u.id !== state.user.id ? `
+                <button class="btn btn-secondary btn-sm" onclick="resetUserPassword(${u.id}, '${u.name}')">Reset password</button>
+                <button class="btn btn-danger btn-sm" onclick="removeUser(${u.id}, '${u.name}')">Remove</button>
+              ` : '—'}
+            </div>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+async function changeRole(userId, role) {
+  try {
+    await fetch(`/auth/users/${userId}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role })
+    }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error); });
+  } catch (err) {
+    alert('Error changing role: ' + err.message);
+    await loadUsersTable();
+  }
+}
+
+async function resetUserPassword(userId, userName) {
+  const newPw = prompt(`Set a new password for ${userName} (min. 8 characters):`);
+  if (!newPw) return;
+  if (newPw.length < 8) { alert('Password must be at least 8 characters'); return; }
+  try {
+    await fetch(`/auth/users/${userId}/password`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newPassword: newPw })
+    }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error); });
+    alert(`Password for ${userName} has been reset`);
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+async function removeUser(userId, userName) {
+  if (!confirm(`Remove ${userName} from POTrack? They will no longer be able to log in.`)) return;
+  try {
+    await fetch(`/auth/users/${userId}`, { method: 'DELETE', credentials: 'same-origin' })
+      .then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error); });
+    await loadUsersTable();
+  } catch (err) {
+    alert('Error: ' + err.message);
   }
 }
 
 function bindSettings() {
-  document.getElementById('btn-save-settings').addEventListener('click', async () => {
-    await post('/api/settings', { key: 'company', value: document.getElementById('setting-company').value });
-    await post('/api/settings', { key: 'currency', value: document.getElementById('setting-currency').value });
-    state.settings.currency = document.getElementById('setting-currency').value;
-  });
-}
-
-async function deleteUser(id) {
-  if (!confirm('Remove this user?')) return;
-  await del(`/api/users/${id}`);
-  renderSettings();
+  // bindings now handled inside renderSettings via onclick
 }
 
 // ---- Top buttons -------------------------------------------
