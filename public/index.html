@@ -171,29 +171,85 @@
       </section>
 
       <section class="page" id="page-settings">
-        <div class="settings-wrap">
-          <div class="settings-card">
-            <div class="settings-label">Company name</div>
-            <input type="text" id="setting-company" placeholder="Your company name">
-            <button class="btn btn-secondary" style="margin-top:8px;" id="btn-save-settings">Save</button>
-          </div>
-          <div class="settings-card">
-            <div class="settings-label">Currency</div>
-            <select id="setting-currency">
-              <option value="GBP">£ GBP</option>
-              <option value="EUR">€ EUR</option>
-              <option value="USD">$ USD</option>
-            </select>
-          </div>
-          <div class="settings-card" id="admin-panel" style="display:none;">
-            <div class="settings-label">Team members</div>
-            <div id="users-list"></div>
-          </div>
-          <div class="settings-card">
-            <div class="settings-label">About</div>
-            <div class="settings-about">POTrack v1.0 · Multi-user · Xero integrated · HireHop planned</div>
+        <div class="settings-tabs">
+          <button class="stab active" data-stab="profile">My Profile</button>
+          <button class="stab" data-stab="company">Company</button>
+          <button class="stab admin-only" data-stab="users" style="display:none;">Team &amp; Permissions</button>
+        </div>
+
+        <!-- MY PROFILE -->
+        <div class="stab-panel active" id="stab-profile">
+          <div class="settings-wrap">
+            <div class="settings-card">
+              <div class="settings-label">Personal details</div>
+              <div class="field-group"><label>Full name</label><input type="text" id="prof-name" placeholder="Your name"></div>
+              <div class="field-group"><label>Email</label><input type="email" id="prof-email" placeholder="you@company.com"></div>
+              <div class="form-error hidden" id="prof-error"></div>
+              <button class="btn btn-primary" id="btn-save-profile">Save details</button>
+            </div>
+            <div class="settings-card">
+              <div class="settings-label">Change password</div>
+              <div class="field-group"><label>Current password</label><input type="password" id="pw-current" placeholder="••••••••"></div>
+              <div class="field-group"><label>New password</label><input type="password" id="pw-new" placeholder="Min. 8 characters"></div>
+              <div class="field-group"><label>Confirm new password</label><input type="password" id="pw-confirm" placeholder="Repeat new password"></div>
+              <div class="form-error hidden" id="pw-error"></div>
+              <div class="form-success hidden" id="pw-success">Password changed successfully</div>
+              <button class="btn btn-primary" id="btn-change-pw">Change password</button>
+            </div>
           </div>
         </div>
+
+        <!-- COMPANY -->
+        <div class="stab-panel" id="stab-company">
+          <div class="settings-wrap">
+            <div class="settings-card">
+              <div class="settings-label">Company settings</div>
+              <div class="field-group"><label>Company name</label><input type="text" id="setting-company" placeholder="Your company name"></div>
+              <div class="field-group"><label>Currency</label>
+                <select id="setting-currency">
+                  <option value="GBP">£ GBP — British Pound</option>
+                  <option value="EUR">€ EUR — Euro</option>
+                  <option value="USD">$ USD — US Dollar</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" id="btn-save-settings">Save settings</button>
+            </div>
+            <div class="settings-card">
+              <div class="settings-label">About</div>
+              <div class="settings-about">POTrack v1.0 · Multi-user · Xero integrated · HireHop planned</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TEAM & PERMISSIONS (admin only) -->
+        <div class="stab-panel" id="stab-users">
+          <div class="settings-wrap" style="max-width:700px;">
+            <div class="settings-card">
+              <div class="settings-label">Add team member</div>
+              <div class="form-row">
+                <div class="field-group"><label>Full name</label><input type="text" id="new-user-name" placeholder="Jane Smith"></div>
+                <div class="field-group"><label>Email</label><input type="email" id="new-user-email" placeholder="jane@company.com"></div>
+              </div>
+              <div class="form-row">
+                <div class="field-group"><label>Password</label><input type="password" id="new-user-pw" placeholder="Min. 8 characters"></div>
+                <div class="field-group"><label>Role</label>
+                  <select id="new-user-role">
+                    <option value="member">Member — can view and edit everything</option>
+                    <option value="viewer">Viewer — can view only, cannot edit</option>
+                    <option value="admin">Admin — full access including user management</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-error hidden" id="new-user-error"></div>
+              <button class="btn btn-primary" id="btn-add-user">Add team member</button>
+            </div>
+            <div class="settings-card">
+              <div class="settings-label">Team members</div>
+              <div id="users-list"></div>
+            </div>
+          </div>
+        </div>
+
       </section>
 
     </div>
