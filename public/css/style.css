@@ -225,3 +225,25 @@ code { font-family: var(--mono); font-size: 12px; background: var(--surface); bo
 .users-table { width:100%; border-collapse:collapse; font-size:13px; }
 .users-table td { padding:8px 4px; border-bottom:1px solid var(--border); }
 .users-table tr:last-child td { border-bottom:none; }
+
+/* ---- Settings tabs --------------------------------------- */
+.settings-tabs { display:flex; gap:4px; margin-bottom:18px; border-bottom:1px solid var(--border); padding-bottom:0; }
+.stab { font-family:var(--sans); font-size:13px; font-weight:500; padding:8px 16px; border:none; background:none; cursor:pointer; color:var(--txt3); border-bottom:2px solid transparent; margin-bottom:-1px; }
+.stab:hover { color:var(--txt); }
+.stab.active { color:var(--green); border-bottom-color:var(--green); }
+.stab-panel { display:none; }
+.stab-panel.active { display:block; }
+
+/* ---- Form feedback --------------------------------------- */
+.form-error { color:var(--red); font-size:12px; padding:8px 10px; background:var(--red-light); border-radius:6px; margin-bottom:10px; }
+.form-error.hidden { display:none; }
+.form-success { color:#166534; font-size:12px; padding:8px 10px; background:#D4F4E4; border-radius:6px; margin-bottom:10px; }
+.form-success.hidden { display:none; }
+
+/* ---- Users table ----------------------------------------- */
+.users-table { width:100%; border-collapse:collapse; font-size:13px; }
+.users-table th { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.6px; color:var(--txt3); padding:8px 10px; text-align:left; border-bottom:1px solid var(--border); }
+.users-table td { padding:10px 10px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.users-table tr:last-child td { border-bottom:none; }
+.role-select { padding:4px 8px; border:1px solid var(--border-dk); border-radius:6px; font-family:var(--sans); font-size:12px; background:var(--surface); cursor:pointer; }
+.user-actions { display:flex; gap:6px; align-items:center; }
