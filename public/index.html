@@ -111,6 +111,12 @@
       </section>
 
       <section class="page" id="page-projects">
+        <div class="filter-bar">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="hide-completed" style="width:auto;">
+            Hide completed projects
+          </label>
+        </div>
         <div class="table-card" id="full-proj-table"></div>
       </section>
 
@@ -313,6 +319,79 @@
     <button class="btn btn-secondary" data-close="modal-po-detail">Close</button>
     <button class="btn btn-secondary" id="btn-edit-from-detail">Edit</button>
     <button class="btn btn-xero btn-sm" id="btn-push-xero" style="display:none;">Push to Xero as bill</button>
+  </div>
+</div>
+
+<!-- PROJECT DETAIL MODAL -->
+<div class="modal modal-fullish" id="modal-proj-detail">
+  <div class="modal-header">
+    <div>
+      <div class="modal-title" id="proj-detail-title">Project detail</div>
+      <div style="font-size:12px;color:var(--txt3);margin-top:2px;" id="proj-detail-sub"></div>
+    </div>
+    <button class="modal-close" data-close="modal-proj-detail">✕</button>
+  </div>
+  <div class="modal-body" id="proj-detail-body"></div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" data-close="modal-proj-detail">Close</button>
+    <button class="btn btn-primary" id="btn-proj-detail-edit">Edit project</button>
+  </div>
+</div>
+
+<!-- ADD INCOME LINE MODAL -->
+<div class="modal" id="modal-income-line">
+  <div class="modal-header">
+    <div class="modal-title" id="income-line-title">Add income</div>
+    <button class="modal-close" data-close="modal-income-line">✕</button>
+  </div>
+  <div class="modal-body">
+    <input type="hidden" id="il-id">
+    <div class="field-group"><label>Description</label><input type="text" id="il-desc" placeholder="e.g. Stage 1 deposit"></div>
+    <div class="form-row">
+      <div class="field-group"><label>Predicted (£)</label><input type="number" id="il-predicted" placeholder="0.00" step="0.01" min="0"></div>
+      <div class="field-group"><label>Actual received (£)</label><input type="number" id="il-actual" placeholder="Leave blank if not yet received" step="0.01" min="0"></div>
+    </div>
+    <div class="form-row">
+      <div class="field-group"><label>Due date</label><input type="text" id="il-due" placeholder="DD/MM/YY"></div>
+      <div class="field-group"><label>Status</label>
+        <select id="il-status"><option>Pending</option><option>Invoiced</option><option>Received</option><option>Overdue</option></select>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-danger btn-sm" id="btn-delete-income" style="margin-right:auto;display:none;">Delete</button>
+    <button class="btn btn-secondary" data-close="modal-income-line">Cancel</button>
+    <button class="btn btn-primary" id="btn-save-income">Save</button>
+  </div>
+</div>
+
+<!-- ADD SPEND LINE MODAL -->
+<div class="modal" id="modal-spend-line">
+  <div class="modal-header">
+    <div class="modal-title" id="spend-line-title">Add spend</div>
+    <button class="modal-close" data-close="modal-spend-line">✕</button>
+  </div>
+  <div class="modal-body">
+    <input type="hidden" id="sl-id">
+    <div class="form-row">
+      <div class="field-group"><label>Category</label>
+        <select id="sl-category">
+          <option>Equipment</option><option>Crew</option><option>Venue</option><option>Transport</option>
+          <option>Accommodation</option><option>Catering</option><option>Consumables</option><option>Other</option>
+        </select>
+      </div>
+      <div class="field-group"><label>Description</label><input type="text" id="sl-desc" placeholder="Brief description"></div>
+    </div>
+    <div class="form-row">
+      <div class="field-group"><label>Predicted (£)</label><input type="number" id="sl-predicted" placeholder="0.00" step="0.01" min="0"></div>
+      <div class="field-group"><label>Actual spend (£)</label><input type="number" id="sl-actual" placeholder="Leave blank if not yet spent" step="0.01" min="0"></div>
+    </div>
+    <div class="field-group"><label>Due date</label><input type="text" id="sl-due" placeholder="DD/MM/YY"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-danger btn-sm" id="btn-delete-spend" style="margin-right:auto;display:none;">Delete</button>
+    <button class="btn btn-secondary" data-close="modal-spend-line">Cancel</button>
+    <button class="btn btn-primary" id="btn-save-spend">Save</button>
   </div>
 </div>
 
