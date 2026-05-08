@@ -204,3 +204,124 @@ router.delete('/users/:id', async (req, res) => {
 });
 
 module.exports = router;
+
+// ---- Project Detail ----------------------------------------
+
+router.get('/projects/:id/detail', async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const proj = await pool.query('SELECT * FROM projects WHERE id = $1', [id]);
+    if (!proj.rows[0]) return res.status(404).json({ error: 'Not found' });
+
+    const pos = await pool.query(`
+      SELECT * FROM purchase_orders WHERE project_id = $1 ORDER BY created_at ASC
+    `, [id]);
+
+    const income = await pool.query(`
+      SELECT * FROM project_income WHERE project_id = $1 ORDER BY created_at ASC
+    `, [id]);
+
+    const spend = await pool.query(`
+      SELECT * FROM project_spend WHERE project_id = $1 ORDER BY created_at ASC
+    `, [id]);
+
+    res.json({
+      project:  proj.rows[0],
+      pos:      pos.rows,
+      income:   income.rows,
+      spend:    spend.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ---- Income line items -------------------------------------
+
+router.post('/projects/:id/income', async (req, res) => {
+  try {
+    const { description, predicted, actual, due_date, status } = req.body;
+    const { rows } = await pool.query(`
+      INSERT INTO project_income (project_id, description, predicted, actual, due_date, status, created_by)
+      VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *
+    `, [req.params.id, description, predicted||0, actual||null, due_date||'', status||'Pending', req.session.userId]);
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.put('/income/:id', async (req, res) => {
+  try {
+    const { description, predicted, actual, due_date, status } = req.body;
+    const { rows } = await pool.query(`
+      UPDATE project_income SET description=$1, predicted=$2, actual=$3, due_date=$4, status=$5
+      WHERE id=$6 RETURNING *
+    `, [description, predicted||0, actual||null, due_date||'', status||'Pending', req.params.id]);
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.delete('/income/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM project_income WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ---- Spend line items --------------------------------------
+
+router.post('/projects/:id/spend', async (req, res) => {
+  try {
+    const { category, description, predicted, actual, due_date } = req.body;
+    const { rows } = await pool.query(`
+      INSERT INTO project_spend (project_id, category, description, predicted, actual, due_date, created_by)
+      VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *
+    `, [req.params.id, category||'Other', description||'', predicted||0, actual||null, due_date||'', req.session.userId]);
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.put('/spend/:id', async (req, res) => {
+  try {
+    const { category, description, predicted, actual, due_date } = req.body;
+    const { rows } = await pool.query(`
+      UPDATE project_spend SET category=$1, description=$2, predicted=$3, actual=$4, due_date=$5
+      WHERE id=$6 RETURNING *
+    `, [category||'Other', description||'', predicted||0, actual||null, due_date||'', req.params.id]);
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.delete('/spend/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM project_spend WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ---- Update PO actual amount -------------------------------
+
+router.put('/pos/:id/actual', async (req, res) => {
+  try {
+    const { actual_amount } = req.body;
+    const { rows } = await pool.query(`
+      UPDATE purchase_orders SET actual_amount=$1, updated_at=NOW() WHERE id=$2 RETURNING *
+    `, [actual_amount||null, req.params.id]);
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
