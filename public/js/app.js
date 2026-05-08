@@ -230,14 +230,13 @@ function renderProjects() {
   if (hideCompleted) projects = projects.filter(p => p.status !== 'Complete');
 
   document.getElementById('full-proj-table').innerHTML = tableWrap(
-    ['Project','Job no.','Client','Budget','Predicted spend','Actual spend','Due in','Due out','Status'],
-    ['18%','8%','13%','10%','11%','11%','10%','10%','9%'],
+    ['Project','Job no.','Client','Dates','Budget','Due in','Due out','Status'],
+    ['20%','8%','13%','14%','10%','10%','10%','10%','5%'],
     projects.length ? projects.map(p => `<tr>
       <td><a href="#" onclick="openProjectDetail(${p.id});return false;" style="color:var(--green);font-weight:500;">${p.name}</a></td>
       <td class="mono">${p.job_num}</td><td>${p.client||'—'}</td>
       <td class="mono">${fmt(p.budget)}</td>
-      <td class="mono">${fmt(p.income)}</td>
-      <td class="mono" style="color:var(--red)">${fmt(p.due_out)}</td>
+      <td style="font-size:12px;color:var(--txt2)">${p.start_date && p.end_date ? p.start_date + ' → ' + p.end_date : p.start_date || '—'}</td>
       <td class="mono" style="color:var(--green)">${fmt(p.income)}</td>
       <td class="mono" style="color:var(--red)">${fmt(p.due_out)}</td>
       <td>${badge(p.status)}</td>
@@ -628,16 +627,19 @@ async function openProjectModal(projId) {
   document.getElementById('btn-delete-proj').style.display = isEdit ? 'inline-block' : 'none';
   if (isEdit) {
     const p = state.projects.find(p => p.id === projId);
-    document.getElementById('pf-id').value     = p.id;
-    document.getElementById('pf-name').value   = p.name;
-    document.getElementById('pf-jobnum').value = p.job_num;
-    document.getElementById('pf-client').value = p.client||'';
-    document.getElementById('pf-budget').value = p.budget;
-    document.getElementById('pf-income').value = p.income;
-    document.getElementById('pf-status').value = p.status;
-    document.getElementById('pf-notes').value  = p.notes||'';
+    document.getElementById('pf-id').value       = p.id;
+    document.getElementById('pf-name').value     = p.name;
+    document.getElementById('pf-jobnum').value   = p.job_num;
+    document.getElementById('pf-client').value   = p.client||'';
+    document.getElementById('pf-budget').value   = p.budget;
+    document.getElementById('pf-income').value   = p.income;
+    document.getElementById('pf-status').value   = p.status;
+    document.getElementById('pf-start').value    = p.start_date||'';
+    document.getElementById('pf-end').value      = p.end_date||'';
+    document.getElementById('pf-location').value = p.location||'';
+    document.getElementById('pf-notes').value    = p.notes||'';
   } else {
-    ['pf-id','pf-name','pf-jobnum','pf-client','pf-budget','pf-income','pf-notes'].forEach(id => document.getElementById(id).value='');
+    ['pf-id','pf-name','pf-jobnum','pf-client','pf-budget','pf-income','pf-start','pf-end','pf-location','pf-notes'].forEach(id => document.getElementById(id).value='');
     document.getElementById('pf-status').value = 'Active';
   }
   openModal('modal-project');
@@ -677,7 +679,11 @@ async function openProjectDetail(projId) {
   const p = data.project;
 
   document.getElementById('proj-detail-title').textContent = p.name;
-  document.getElementById('proj-detail-sub').textContent   = `Job ${p.job_num} · ${p.client || '—'} · ${p.status}`;
+  const dateRange = p.start_date && p.end_date
+    ? ` · ${p.start_date} → ${p.end_date}`
+    : p.start_date ? ` · From ${p.start_date}` : '';
+  const locationStr = p.location ? ` · ${p.location}` : '';
+  document.getElementById('proj-detail-sub').textContent = `Job ${p.job_num} · ${p.client || '—'} · ${p.status}${dateRange}${locationStr}`;
 
   document.getElementById('btn-proj-detail-edit').onclick = () => {
     closeModals();
