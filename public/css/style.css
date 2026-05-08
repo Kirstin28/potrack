@@ -247,3 +247,34 @@ code { font-family: var(--mono); font-size: 12px; background: var(--surface); bo
 .users-table tr:last-child td { border-bottom:none; }
 .role-select { padding:4px 8px; border:1px solid var(--border-dk); border-radius:6px; font-family:var(--sans); font-size:12px; background:var(--surface); cursor:pointer; }
 .user-actions { display:flex; gap:6px; align-items:center; }
+
+/* ---- Project detail modal -------------------------------- */
+.modal-fullish { width: 860px; max-width: 96vw; max-height: 92vh; }
+
+/* ---- Detail section cards -------------------------------- */
+.detail-section { margin-bottom: 22px; }
+.detail-section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.detail-section-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--txt3); }
+
+/* ---- Summary metrics row --------------------------------- */
+.proj-metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; }
+.proj-metric { background: var(--bg); border-radius: var(--r); padding: 12px 14px; }
+.proj-metric-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--txt3); font-weight: 500; margin-bottom: 5px; }
+.proj-metric-val { font-size: 18px; font-weight: 600; font-family: var(--mono); letter-spacing: -0.3px; }
+
+/* ---- Inline editable table ------------------------------- */
+.line-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.line-table th { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--txt3); padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border); background: #FAFAF8; }
+.line-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.line-table tr:last-child td { border-bottom: none; }
+.line-table tbody tr:hover td { background: #FAFAF8; cursor: pointer; }
+.line-table .mono { font-family: var(--mono); font-size: 12px; }
+.actual-blank { color: var(--txt3); font-style: italic; font-size: 12px; }
+.variance-pos { color: var(--green); font-family: var(--mono); font-size: 12px; font-weight: 500; }
+.variance-neg { color: var(--red); font-family: var(--mono); font-size: 12px; font-weight: 500; }
+
+/* ---- Totals row ------------------------------------------ */
+.totals-row td { font-weight: 600; background: var(--bg); border-top: 2px solid var(--border-dk) !important; }
