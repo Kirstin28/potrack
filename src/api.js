@@ -31,12 +31,12 @@ router.get('/projects', async (req, res) => {
 
 router.post('/projects', async (req, res) => {
   try {
-    const { job_num, name, client, budget, income, status, notes } = req.body;
+    const { job_num, name, client, budget, income, status, notes, start_date, end_date, location } = req.body;
     if (!name) return res.status(400).json({ error: 'Project name required' });
     const { rows } = await pool.query(`
-      INSERT INTO projects (job_num, name, client, budget, income, status, notes, created_by)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *
-    `, [job_num, name, client || '', budget || 0, income || 0, status || 'Active', notes || '', req.session.userId]);
+      INSERT INTO projects (job_num, name, client, budget, income, status, notes, start_date, end_date, location, created_by)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *
+    `, [job_num, name, client||'', budget||0, income||0, status||'Active', notes||'', start_date||'', end_date||'', location||'', req.session.userId]);
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -46,12 +46,12 @@ router.post('/projects', async (req, res) => {
 
 router.put('/projects/:id', async (req, res) => {
   try {
-    const { job_num, name, client, budget, income, status, notes } = req.body;
+    const { job_num, name, client, budget, income, status, notes, start_date, end_date, location } = req.body;
     const { rows } = await pool.query(`
       UPDATE projects SET job_num=$1, name=$2, client=$3, budget=$4, income=$5,
-        status=$6, notes=$7, updated_at=NOW()
-      WHERE id=$8 RETURNING *
-    `, [job_num, name, client || '', budget || 0, income || 0, status, notes || '', req.params.id]);
+        status=$6, notes=$7, start_date=$8, end_date=$9, location=$10, updated_at=NOW()
+      WHERE id=$11 RETURNING *
+    `, [job_num, name, client||'', budget||0, income||0, status, notes||'', start_date||'', end_date||'', location||'', req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Not found' });
     res.json(rows[0]);
   } catch (err) {
