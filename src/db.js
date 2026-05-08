@@ -108,6 +108,8 @@ async function initDB() {
 
       ALTER TABLE project_income  ADD COLUMN IF NOT EXISTS paid            BOOLEAN DEFAULT FALSE;
       ALTER TABLE project_income  ADD COLUMN IF NOT EXISTS paid_date       TEXT    DEFAULT '';
+      ALTER TABLE project_income  ADD COLUMN IF NOT EXISTS invoiced        BOOLEAN DEFAULT FALSE;
+      ALTER TABLE project_income  ADD COLUMN IF NOT EXISTS invoiced_date   TEXT    DEFAULT '';
 
       ALTER TABLE project_spend   ADD COLUMN IF NOT EXISTS paid            BOOLEAN DEFAULT FALSE;
       ALTER TABLE project_spend   ADD COLUMN IF NOT EXISTS paid_date       TEXT    DEFAULT '';
