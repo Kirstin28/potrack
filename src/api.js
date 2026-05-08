@@ -89,7 +89,7 @@ router.get('/pos', async (req, res) => {
 
 router.get('/pos/next-num/:jobNum', async (req, res) => {
   try {
-    const padded = String(parseInt(req.params.jobNum) || 0).padStart(3, '0');
+    const padded = String(req.params.jobNum).trim().padStart(3, '0').slice(0, 15);
     const prefix = `PO${padded}-`;
     const { rows } = await pool.query(
       `SELECT num FROM purchase_orders WHERE num LIKE $1`,
