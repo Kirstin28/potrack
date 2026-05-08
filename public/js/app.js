@@ -792,18 +792,19 @@ function renderDetailBody(data, infoBar) {
       </div>
       <div class="table-card">
         <table class="line-table">
-          <thead><tr><th>Description</th><th>Due date</th><th>Predicted</th><th>Actual</th><th>Variance</th><th>Status</th><th>Payment</th></tr></thead>
+          <thead><tr><th>Description</th><th>Due date</th><th>Predicted</th><th>Actual</th><th>Variance</th><th>Invoiced</th><th>Paid</th></tr></thead>
           <tbody>
             ${income.map(i => {
               const variance = i.actual != null ? Number(i.actual) - Number(i.predicted) : null;
-              const paidPill = i.paid ? `<span class="pill-paid">✓ Paid${i.paid_date ? ' · ' + i.paid_date : ''}</span>` : `<span class="pill-unpaid">Unpaid</span>`;
+              const invoicedPill = i.invoiced ? `<span class="pill-invoiced">✓ Invoiced${i.invoiced_date ? ' · ' + i.invoiced_date : ''}</span>` : `<span class="pill-unpaid">Not invoiced</span>`;
+              const paidPill     = i.paid     ? `<span class="pill-paid">✓ Paid${i.paid_date ? ' · ' + i.paid_date : ''}</span>`         : `<span class="pill-unpaid">Unpaid</span>`;
               return `<tr onclick="openIncomeLineModal(${i.id}, ${p.id})">
                 <td>${i.description}</td>
                 <td>${i.due_date || '—'}</td>
                 <td class="mono">${fmt(i.predicted)}</td>
                 <td class="mono" style="color:var(--green)">${i.actual != null ? fmt(i.actual) : '<span class="actual-blank">not yet</span>'}</td>
                 <td>${variance != null ? `<span class="${variance >= 0 ? 'variance-pos' : 'variance-neg'}">${variance >= 0 ? '+' : ''}${fmt(variance)}</span>` : '—'}</td>
-                <td>${badge(i.status)}</td>
+                <td>${invoicedPill}</td>
                 <td>${paidPill}</td>
               </tr>`;
             }).join('')}
@@ -899,12 +900,11 @@ function openIncomeLineModal(lineId, projectId) {
     // just clear and let user fill — data is in the table visually
   }
 
-  // populate paid fields if editing
-  if (isEdit) {
-    // fields will be blank by default; user fills them
-  } else {
-    document.getElementById('il-paid').checked = false;
-    document.getElementById('il-paid-date').value = '';
+  if (!isEdit) {
+    document.getElementById('il-invoiced').checked   = false;
+    document.getElementById('il-invoiced-date').value = '';
+    document.getElementById('il-paid').checked       = false;
+    document.getElementById('il-paid-date').value    = '';
   }
 
   document.getElementById('btn-save-income').onclick = async () => {
@@ -914,8 +914,10 @@ function openIncomeLineModal(lineId, projectId) {
       actual:      document.getElementById('il-actual').value !== '' ? parseFloat(document.getElementById('il-actual').value) : null,
       due_date:    document.getElementById('il-due').value.trim(),
       status:      document.getElementById('il-status').value,
-      paid:        document.getElementById('il-paid').checked,
-      paid_date:   document.getElementById('il-paid-date').value.trim(),
+      invoiced:      document.getElementById('il-invoiced').checked,
+      invoiced_date: document.getElementById('il-invoiced-date').value.trim(),
+      paid:          document.getElementById('il-paid').checked,
+      paid_date:     document.getElementById('il-paid-date').value.trim(),
     };
     if (!body.description) { alert('Please enter a description'); return; }
     if (isEdit) {
