@@ -231,17 +231,18 @@ function renderProjects() {
 
   document.getElementById('full-proj-table').innerHTML = tableWrap(
     ['Project','Job no.','Client','Dates','Budget','Due in','Due out','Status'],
-    ['20%','8%','13%','14%','10%','10%','10%','10%','5%'],
+    ['22%','8%','13%','16%','10%','10%','10%','11%'],
     projects.length ? projects.map(p => `<tr>
       <td><a href="#" onclick="openProjectDetail(${p.id});return false;" style="color:var(--green);font-weight:500;">${p.name}</a></td>
-      <td class="mono">${p.job_num}</td><td>${p.client||'—'}</td>
-      <td class="mono">${fmt(p.budget)}</td>
+      <td class="mono">${p.job_num}</td>
+      <td>${p.client||'—'}</td>
       <td style="font-size:12px;color:var(--txt2)">${p.start_date && p.end_date ? p.start_date + ' → ' + p.end_date : p.start_date || '—'}</td>
+      <td class="mono">${fmt(p.budget)}</td>
       <td class="mono" style="color:var(--green)">${fmt(p.income)}</td>
       <td class="mono" style="color:var(--red)">${fmt(p.due_out)}</td>
       <td>${badge(p.status)}</td>
       </tr>`).join('') :
-    '<tr><td colspan="9"><div class="empty-state">No projects yet</div></td></tr>'
+    '<tr><td colspan="8"><div class="empty-state">No projects yet</div></td></tr>'
   );
 
   document.getElementById('hide-completed')?.addEventListener('change', renderProjects);
@@ -650,12 +651,16 @@ async function saveProjectForm() {
   const name    = document.getElementById('pf-name').value.trim();
   if (!name) { alert('Please enter a project name'); return; }
   const body = {
-    job_num: String(document.getElementById('pf-jobnum').value).trim().padStart(3,'0').slice(0,15),
-    name, client: document.getElementById('pf-client').value.trim(),
-    budget: parseFloat(document.getElementById('pf-budget').value)||0,
-    income: parseFloat(document.getElementById('pf-income').value)||0,
-    status: document.getElementById('pf-status').value,
-    notes:  document.getElementById('pf-notes').value.trim(),
+    job_num:    document.getElementById('pf-jobnum').value.trim().padStart(3,'0').slice(0,15),
+    name,
+    client:     document.getElementById('pf-client').value.trim(),
+    budget:     parseFloat(document.getElementById('pf-budget').value)||0,
+    income:     parseFloat(document.getElementById('pf-income').value)||0,
+    status:     document.getElementById('pf-status').value,
+    start_date: document.getElementById('pf-start').value.trim(),
+    end_date:   document.getElementById('pf-end').value.trim(),
+    location:   document.getElementById('pf-location').value.trim(),
+    notes:      document.getElementById('pf-notes').value.trim(),
   };
   try {
     if (existId) await put(`/api/projects/${existId}`, body);
@@ -679,22 +684,48 @@ async function openProjectDetail(projId) {
   const p = data.project;
 
   document.getElementById('proj-detail-title').textContent = p.name;
-  const dateRange = p.start_date && p.end_date
-    ? ` · ${p.start_date} → ${p.end_date}`
-    : p.start_date ? ` · From ${p.start_date}` : '';
-  const locationStr = p.location ? ` · ${p.location}` : '';
-  document.getElementById('proj-detail-sub').textContent = `Job ${p.job_num} · ${p.client || '—'} · ${p.status}${dateRange}${locationStr}`;
+  const dateRange = p.start_date || p.end_date
+    ? (p.start_date && p.end_date ? `${p.start_date} → ${p.end_date}` : p.start_date || p.end_date)
+    : null;
+  const subParts = [
+    `Job ${p.job_num}`,
+    p.client || null,
+    p.status,
+    dateRange,
+    p.location || null,
+    p.notes || null,
+  ].filter(Boolean);
+  document.getElementById('proj-detail-sub').textContent = subParts.join(' · ');
+
+  // Render a clean info bar above the metrics
+  const infoBar = document.createElement('div');
+  infoBar.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:18px;';
+  const infoFields = [
+    { label: 'Client',    value: p.client     || '—' },
+    { label: 'Job no.',   value: p.job_num    || '—' },
+    { label: 'Status',    value: p.status     || '—' },
+    { label: 'Start',     value: p.start_date || '—' },
+    { label: 'End',       value: p.end_date   || '—' },
+    { label: 'Location',  value: p.location   || '—' },
+    { label: 'Budget',    value: fmt(p.budget)       },
+    { label: 'Notes',     value: p.notes      || '—' },
+  ];
+  infoBar.innerHTML = infoFields.map(f => `
+    <div style="background:var(--bg);border-radius:var(--r);padding:10px 12px;">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.6px;color:var(--txt3);font-weight:500;margin-bottom:3px;">${f.label}</div>
+      <div style="font-size:13px;font-weight:500;">${f.value}</div>
+    </div>`).join('');
 
   document.getElementById('btn-proj-detail-edit').onclick = () => {
     closeModals();
     openProjectModal(projId);
   };
 
-  renderDetailBody(data);
+  renderDetailBody(data, infoBar);
   openModal('modal-proj-detail');
 }
 
-function renderDetailBody(data) {
+function renderDetailBody(data, infoBar) {
   const p      = data.project;
   const pos    = data.pos    || [];
   const income = data.income || [];
@@ -711,7 +742,11 @@ function renderDetailBody(data) {
   const netPredicted = totalIncomePredicted - totalSpendPredicted;
   const netActual    = totalIncomeActual    - totalSpendActual;
 
-  document.getElementById('proj-detail-body').innerHTML = `
+  const bodyEl = document.getElementById('proj-detail-body');
+  bodyEl.innerHTML = '';
+  if (infoBar) bodyEl.appendChild(infoBar);
+  const mainContent = document.createElement('div');
+  mainContent.innerHTML = `
 
     <!-- SUMMARY METRICS -->
     <div class="proj-metrics">
@@ -828,6 +863,7 @@ function renderDetailBody(data) {
       </div>
     </div>
   `;
+  bodyEl.appendChild(mainContent);
 }
 
 // ---- Income line modal -------------------------------------
