@@ -863,9 +863,9 @@ function renderDetailBody(data, infoBar) {
       </div>
       <div class="table-card">
         <table class="line-table">
-          <thead><tr><th>PO number</th><th>Supplier</th><th>Description</th><th>Predicted</th><th>Actual (invoiced)</th><th>Invoiced</th><th>Paid</th><th>Due</th></tr></thead>
+          <thead><tr><th>PO number</th><th>Supplier</th><th>Description</th><th>Predicted</th><th>Actual</th><th>Status</th><th>Due</th></tr></thead>
           <tbody>
-            ${pos.map(po => `<tr onclick="openProjectPODetail(${po.id}, ${p.id})">
+            ${pos.map(po => `<tr onclick="openPODetail(${po.id})">
               <td class="mono">${po.num}</td>
               <td>${po.supplier}</td>
               <td style="color:var(--txt2)">${po.description || '—'}</td>
@@ -881,80 +881,6 @@ function renderDetailBody(data, infoBar) {
     </div>
   `;
   bodyEl.appendChild(mainContent);
-}
-
-// ---- Project PO detail modal ------------------------------
-
-async function openProjectPODetail(poId, projectId) {
-  // Get fresh PO data from server
-  const allPOs = await get('/api/pos');
-  const po = allPOs.find(p => p.id === poId) || state.pos.find(p => p.id === poId);
-
-  document.getElementById('proj-po-id').value       = poId;
-  document.getElementById('proj-po-num').textContent = po.num;
-  document.getElementById('proj-po-supplier').textContent = `${po.supplier}${po.description ? ' · ' + po.description : ''}`;
-
-  // Summary grid
-  document.getElementById('proj-po-summary').innerHTML = `
-    <div class="po-detail-field"><div class="pdf-label">PO amount</div><div class="pdf-value mono">${fmt(po.amount)}</div></div>
-    <div class="po-detail-field"><div class="pdf-label">Status</div><div class="pdf-value">${badge(po.status)}</div></div>
-    <div class="po-detail-field"><div class="pdf-label">Due date</div><div class="pdf-value">${po.due_date || '—'}</div></div>
-    <div class="po-detail-field"><div class="pdf-label">Project</div><div class="pdf-value">${po.project_name || '—'}</div></div>
-  `;
-
-  // Populate invoice fields
-  document.getElementById('proj-po-invoiced').checked      = po.invoiced      || false;
-  document.getElementById('proj-po-invoiced-date').value   = po.invoiced_date || '';
-  document.getElementById('proj-po-actual').value          = po.actual_amount != null ? po.actual_amount : '';
-  document.getElementById('proj-po-paid').checked          = po.paid          || false;
-  document.getElementById('proj-po-paid-date').value       = po.paid_date     || '';
-
-  // Save button
-  document.getElementById('proj-po-save-btn').onclick = async () => {
-    const actualVal = document.getElementById('proj-po-actual').value;
-    const body = {
-      supplier:      po.supplier,
-      project_id:    po.project_id,
-      description:   po.description,
-      amount:        po.amount,
-      status:        po.status,
-      due_date:      po.due_date,
-      invoiced:      document.getElementById('proj-po-invoiced').checked,
-      invoiced_date: document.getElementById('proj-po-invoiced-date').value.trim(),
-      actual_amount: actualVal !== '' ? parseFloat(actualVal) : null,
-      paid:          document.getElementById('proj-po-paid').checked,
-      paid_date:     document.getElementById('proj-po-paid-date').value.trim(),
-    };
-
-    // If paid is checked, auto-set status to Paid
-    if (body.paid && po.status !== 'Paid') body.status = 'Paid';
-
-    await put(`/api/pos/${poId}`, body);
-
-    // Also update actual_amount separately to make sure it saves
-    if (actualVal !== '') {
-      await fetch(`/api/pos/${poId}/actual`, {
-        method: 'PUT', credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ actual_amount: parseFloat(actualVal) })
-      });
-    }
-
-    await refreshData();
-    closeModals();
-    // Reopen project detail so user sees updated figures
-    const freshData = await get(`/api/projects/${projectId}/detail`);
-    renderDetailBody(freshData);
-    openModal('modal-proj-detail');
-  };
-
-  // Edit full PO button
-  document.getElementById('proj-po-edit-btn').onclick = () => {
-    closeModals();
-    openPOModal(poId);
-  };
-
-  openModal('modal-proj-po');
 }
 
 // ---- Income line modal -------------------------------------
@@ -1062,69 +988,4 @@ function openSpendLineModal(lineId, projectId) {
   };
 
   openModal('modal-spend-line');
-}
-
-// ============================================================
-// PO INVOICE RECEIVED (from project detail view)
-// ============================================================
-
-function openPOInvoiceModal(poId, projectId) {
-  const po = null; // will fetch fresh from detail data
-  document.getElementById('poi-po-id').value      = poId;
-  document.getElementById('poi-project-id').value = projectId;
-
-  // Get PO from last loaded detail
-  const allRows = document.querySelectorAll('#proj-detail-body table tr');
-  // Fetch fresh detail to get PO data
-  get(`/api/projects/${projectId}/detail`).then(data => {
-    const po = data.pos.find(p => p.id === poId);
-    if (!po) return;
-
-    document.getElementById('po-invoice-title').textContent = po.num;
-    document.getElementById('po-invoice-sub').textContent   = `${po.supplier} · ${fmt(po.amount)} PO value`;
-
-    document.getElementById('poi-summary').innerHTML = `
-      <div class="pois-field"><div class="pois-label">PO number</div><div class="pois-value mono">${po.num}</div></div>
-      <div class="pois-field"><div class="pois-label">Supplier</div><div class="pois-value">${po.supplier}</div></div>
-      <div class="pois-field"><div class="pois-label">PO amount</div><div class="pois-value mono" style="color:var(--red)">${fmt(po.amount)}</div></div>
-      <div class="pois-field"><div class="pois-label">Description</div><div class="pois-value">${po.description||'—'}</div></div>
-      <div class="pois-field"><div class="pois-label">Status</div><div class="pois-value">${badge(po.status)}</div></div>
-      <div class="pois-field"><div class="pois-label">Due date</div><div class="pois-value">${po.due_date||'—'}</div></div>
-    `;
-
-    // Pre-fill if already has invoice
-    const receivedBox = document.getElementById('poi-received');
-    receivedBox.checked = po.invoice_received || false;
-    document.getElementById('poi-amount').value = po.invoice_amount != null ? po.invoice_amount : po.amount;
-    document.getElementById('poi-date').value   = po.invoice_date || '';
-    document.getElementById('poi-fields').style.display = receivedBox.checked ? 'block' : 'none';
-
-    receivedBox.onchange = () => {
-      document.getElementById('poi-fields').style.display = receivedBox.checked ? 'block' : 'none';
-    };
-
-    document.getElementById('btn-save-po-invoice').onclick = async () => {
-      const btn = document.getElementById('btn-save-po-invoice');
-      btn.textContent = 'Saving…'; btn.disabled = true;
-      try {
-        const body = {
-          invoice_received: receivedBox.checked,
-          invoice_amount:   parseFloat(document.getElementById('poi-amount').value) || null,
-          invoice_date:     document.getElementById('poi-date').value.trim(),
-        };
-        await post(`/api/pos/${poId}/invoice`, body);
-
-        // Refresh the project detail
-        closeModals();
-        const freshData = await get(`/api/projects/${projectId}/detail`);
-        renderDetailBody(freshData);
-        openModal('modal-proj-detail');
-      } catch (err) {
-        alert('Error: ' + err.message);
-        btn.textContent = 'Save'; btn.disabled = false;
-      }
-    };
-
-    openModal('modal-po-invoice');
-  });
 }
