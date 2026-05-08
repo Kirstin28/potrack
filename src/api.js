@@ -242,11 +242,11 @@ router.get('/projects/:id/detail', async (req, res) => {
 
 router.post('/projects/:id/income', async (req, res) => {
   try {
-    const { description, predicted, actual, due_date, status, paid, paid_date } = req.body;
+    const { description, predicted, actual, due_date, status, paid, paid_date, invoiced, invoiced_date } = req.body;
     const { rows } = await pool.query(`
-      INSERT INTO project_income (project_id, description, predicted, actual, due_date, status, paid, paid_date, created_by)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *
-    `, [req.params.id, description, predicted||0, actual||null, due_date||'', status||'Pending', paid||false, paid_date||'', req.session.userId]);
+      INSERT INTO project_income (project_id, description, predicted, actual, due_date, status, paid, paid_date, invoiced, invoiced_date, created_by)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *
+    `, [req.params.id, description, predicted||0, actual||null, due_date||'', status||'Pending', paid||false, paid_date||'', invoiced||false, invoiced_date||'', req.session.userId]);
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -255,11 +255,12 @@ router.post('/projects/:id/income', async (req, res) => {
 
 router.put('/income/:id', async (req, res) => {
   try {
-    const { description, predicted, actual, due_date, status, paid, paid_date } = req.body;
+    const { description, predicted, actual, due_date, status, paid, paid_date, invoiced, invoiced_date } = req.body;
     const { rows } = await pool.query(`
-      UPDATE project_income SET description=$1, predicted=$2, actual=$3, due_date=$4, status=$5, paid=$6, paid_date=$7
-      WHERE id=$8 RETURNING *
-    `, [description, predicted||0, actual||null, due_date||'', status||'Pending', paid||false, paid_date||'', req.params.id]);
+      UPDATE project_income SET description=$1, predicted=$2, actual=$3, due_date=$4, status=$5,
+        paid=$6, paid_date=$7, invoiced=$8, invoiced_date=$9
+      WHERE id=$10 RETURNING *
+    `, [description, predicted||0, actual||null, due_date||'', status||'Pending', paid||false, paid_date||'', invoiced||false, invoiced_date||'', req.params.id]);
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
