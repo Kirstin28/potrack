@@ -1,14 +1,9 @@
-// ============================================================
-// POTrack — Database (PostgreSQL via pg)
-// ============================================================
-
 const { Pool } = require('pg');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('railway')
-    ? { rejectUnauthorized: false }
-    : false,
+    ? { rejectUnauthorized: false } : false,
 });
 
 async function initDB() {
@@ -39,18 +34,43 @@ async function initDB() {
       );
 
       CREATE TABLE IF NOT EXISTS purchase_orders (
+        id              SERIAL PRIMARY KEY,
+        num             TEXT NOT NULL UNIQUE,
+        supplier        TEXT NOT NULL,
+        project_id      INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+        description     TEXT DEFAULT '',
+        amount          NUMERIC DEFAULT 0,
+        actual_amount   NUMERIC DEFAULT NULL,
+        status          TEXT DEFAULT 'Draft',
+        due_date        TEXT DEFAULT '',
+        xero_id         TEXT DEFAULT '',
+        created_by      INTEGER REFERENCES users(id),
+        created_at      TIMESTAMPTZ DEFAULT NOW(),
+        updated_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS project_income (
         id          SERIAL PRIMARY KEY,
-        num         TEXT NOT NULL UNIQUE,
-        supplier    TEXT NOT NULL,
-        project_id  INTEGER REFERENCES projects(id) ON DELETE SET NULL,
-        description TEXT DEFAULT '',
-        amount      NUMERIC DEFAULT 0,
-        status      TEXT DEFAULT 'Draft',
+        project_id  INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+        description TEXT NOT NULL,
+        predicted   NUMERIC DEFAULT 0,
+        actual      NUMERIC DEFAULT NULL,
         due_date    TEXT DEFAULT '',
-        xero_id     TEXT DEFAULT '',
+        status      TEXT DEFAULT 'Pending',
         created_by  INTEGER REFERENCES users(id),
-        created_at  TIMESTAMPTZ DEFAULT NOW(),
-        updated_at  TIMESTAMPTZ DEFAULT NOW()
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS project_spend (
+        id          SERIAL PRIMARY KEY,
+        project_id  INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+        category    TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        predicted   NUMERIC DEFAULT 0,
+        actual      NUMERIC DEFAULT NULL,
+        due_date    TEXT DEFAULT '',
+        created_by  INTEGER REFERENCES users(id),
+        created_at  TIMESTAMPTZ DEFAULT NOW()
       );
 
       CREATE TABLE IF NOT EXISTS settings (
@@ -72,22 +92,20 @@ async function initDB() {
         sess    JSON NOT NULL,
         expire  TIMESTAMPTZ NOT NULL
       );
+
+      ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS actual_amount NUMERIC DEFAULT NULL;
     `);
 
-    // Seed demo data if empty
     const { rows } = await client.query('SELECT COUNT(*) FROM projects');
-    if (parseInt(rows[0].count) === 0) {
-      await seedDemo(client);
-    }
+    if (parseInt(rows[0].count) === 0) await seedDemo(client);
 
-    console.log('✓ Database ready');
+    console.log('Database ready');
   } finally {
     client.release();
   }
 }
 
 async function seedDemo(client) {
-  // Create a default admin user (password: admin123)
   const bcrypt = require('bcryptjs');
   const hash = await bcrypt.hash('admin123', 10);
   const user = await client.query(
@@ -122,7 +140,26 @@ async function seedDemo(client) {
       ('PO005-001','StageRight Ltd',  $4, 'Full production package',  9100, 'Paid',     '01/04/26', $5)
   `, [p1, p2, p3, p4, userId]);
 
-  console.log('✓ Demo data seeded — login: admin@yourcompany.com / admin123');
+  await client.query(`
+    INSERT INTO project_income (project_id, description, predicted, actual, due_date, status, created_by)
+    VALUES
+      ($1, 'Stage 1 deposit',    14000, 14000, '01/03/26', 'Received', $5),
+      ($1, 'Final payment',      14000, NULL,  '30/06/26', 'Pending',  $5),
+      ($2, 'Project invoice',    15000, NULL,  '01/06/26', 'Pending',  $5),
+      ($4, 'Full project fee',   12000, 12000, '01/03/26', 'Received', $5)
+  `, [p1, p2, p4, userId]);
+
+  await client.query(`
+    INSERT INTO project_spend (project_id, category, description, predicted, actual, due_date, created_by)
+    VALUES
+      ($1, 'Equipment', 'PA hire',        5000, 4200, '30/04/26', $5),
+      ($1, 'Equipment', 'Cabling',        1000, 850,  '15/04/26', $5),
+      ($1, 'Crew',      'Sound engineer', 2000, NULL, '30/06/26', $5),
+      ($2, 'Lighting',  'Stage rig',      3500, 3100, '05/05/26', $5),
+      ($2, 'Power',     'Generator hire', 3000, 2700, '28/04/26', $5)
+  `, [p1, p2, userId]);
+
+  console.log('Demo data seeded');
 }
 
 module.exports = { pool, initDB };
