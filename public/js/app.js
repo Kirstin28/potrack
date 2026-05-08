@@ -515,7 +515,7 @@ function bindPOModal() {
   document.getElementById('f-jobnum').addEventListener('input', async () => {
     const j = document.getElementById('f-jobnum').value.trim();
     if (!j || document.getElementById('f-po-id').value) return;
-    const padded = String(parseInt(j)||0).padStart(3,'0');
+    const padded = String(j).trim().padStart(3, '0').slice(0, 15);
     try { const { num } = await get(`/api/pos/next-num/${padded}`); document.getElementById('po-num-display').textContent = num; } catch(_) {}
   });
   document.getElementById('btn-save-po').addEventListener('click', savePOForm);
@@ -638,7 +638,7 @@ async function saveProjectForm() {
   const name    = document.getElementById('pf-name').value.trim();
   if (!name) { alert('Please enter a project name'); return; }
   const body = {
-    job_num: String(parseInt(document.getElementById('pf-jobnum').value)||0).padStart(3,'0'),
+    job_num: String(document.getElementById('pf-jobnum').value).trim().padStart(3,'0').slice(0,15),
     name, client: document.getElementById('pf-client').value.trim(),
     budget: parseFloat(document.getElementById('pf-budget').value)||0,
     income: parseFloat(document.getElementById('pf-income').value)||0,
