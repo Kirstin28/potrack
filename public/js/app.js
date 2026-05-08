@@ -225,17 +225,27 @@ function renderDashboard() {
 }
 
 function renderProjects() {
+  const hideCompleted = document.getElementById('hide-completed')?.checked;
+  let projects = state.projects;
+  if (hideCompleted) projects = projects.filter(p => p.status !== 'Complete');
+
   document.getElementById('full-proj-table').innerHTML = tableWrap(
-    ['Project','Job no.','Client','Budget','Due in','Due out','Status'],
-    ['22%','9%','17%','12%','12%','13%','15%'],
-    state.projects.length ? state.projects.map(p => `<tr onclick="openProjectModal(${p.id})">
-      <td>${p.name}</td><td class="mono">${p.job_num}</td><td>${p.client||'—'}</td>
+    ['Project','Job no.','Client','Budget','Predicted spend','Actual spend','Due in','Due out','Status'],
+    ['18%','8%','13%','10%','11%','11%','10%','10%','9%'],
+    projects.length ? projects.map(p => `<tr>
+      <td><a href="#" onclick="openProjectDetail(${p.id});return false;" style="color:var(--green);font-weight:500;">${p.name}</a></td>
+      <td class="mono">${p.job_num}</td><td>${p.client||'—'}</td>
       <td class="mono">${fmt(p.budget)}</td>
+      <td class="mono">${fmt(p.income)}</td>
+      <td class="mono" style="color:var(--red)">${fmt(p.due_out)}</td>
       <td class="mono" style="color:var(--green)">${fmt(p.income)}</td>
       <td class="mono" style="color:var(--red)">${fmt(p.due_out)}</td>
-      <td>${badge(p.status)}</td></tr>`).join('') :
-    '<tr><td colspan="7"><div class="empty-state">No projects yet</div></td></tr>'
+      <td>${badge(p.status)}</td>
+      </tr>`).join('') :
+    '<tr><td colspan="9"><div class="empty-state">No projects yet</div></td></tr>'
   );
+
+  document.getElementById('hide-completed')?.addEventListener('change', renderProjects);
 }
 
 function renderPOs() {
@@ -654,3 +664,255 @@ async function saveProjectForm() {
 
 // ---- Start -------------------------------------------------
 boot();
+
+// ============================================================
+// PROJECT DETAIL
+// ============================================================
+
+let detailProjectId = null;
+
+async function openProjectDetail(projId) {
+  detailProjectId = projId;
+  const data = await get(`/api/projects/${projId}/detail`);
+  const p = data.project;
+
+  document.getElementById('proj-detail-title').textContent = p.name;
+  document.getElementById('proj-detail-sub').textContent   = `Job ${p.job_num} · ${p.client || '—'} · ${p.status}`;
+
+  document.getElementById('btn-proj-detail-edit').onclick = () => {
+    closeModals();
+    openProjectModal(projId);
+  };
+
+  renderDetailBody(data);
+  openModal('modal-proj-detail');
+}
+
+function renderDetailBody(data) {
+  const p      = data.project;
+  const pos    = data.pos    || [];
+  const income = data.income || [];
+  const spend  = data.spend  || [];
+
+  // Totals
+  const totalIncomePredicted = income.reduce((a, i) => a + Number(i.predicted), 0);
+  const totalIncomeActual    = income.reduce((a, i) => a + Number(i.actual || 0), 0);
+  const totalSpendPredicted  = spend.reduce((a, s) => a + Number(s.predicted), 0)
+                             + pos.reduce((a, po) => a + Number(po.amount), 0);
+  const totalSpendActual     = spend.reduce((a, s) => a + Number(s.actual || 0), 0)
+                             + pos.filter(po => po.actual_amount != null).reduce((a, po) => a + Number(po.actual_amount), 0)
+                             + pos.filter(po => po.status === 'Paid' && po.actual_amount == null).reduce((a, po) => a + Number(po.amount), 0);
+  const netPredicted = totalIncomePredicted - totalSpendPredicted;
+  const netActual    = totalIncomeActual    - totalSpendActual;
+
+  document.getElementById('proj-detail-body').innerHTML = `
+
+    <!-- SUMMARY METRICS -->
+    <div class="proj-metrics">
+      <div class="proj-metric">
+        <div class="proj-metric-label">Income predicted</div>
+        <div class="proj-metric-val" style="color:var(--green)">${fmt(totalIncomePredicted)}</div>
+      </div>
+      <div class="proj-metric">
+        <div class="proj-metric-label">Income actual</div>
+        <div class="proj-metric-val" style="color:var(--green)">${fmt(totalIncomeActual)}</div>
+      </div>
+      <div class="proj-metric">
+        <div class="proj-metric-label">Spend predicted</div>
+        <div class="proj-metric-val" style="color:var(--red)">${fmt(totalSpendPredicted)}</div>
+      </div>
+      <div class="proj-metric">
+        <div class="proj-metric-label">Spend actual</div>
+        <div class="proj-metric-val" style="color:var(--red)">${fmt(totalSpendActual)}</div>
+      </div>
+      <div class="proj-metric">
+        <div class="proj-metric-label">Net (predicted)</div>
+        <div class="proj-metric-val" style="color:${netPredicted >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(netPredicted)}</div>
+      </div>
+    </div>
+
+    <!-- INCOME -->
+    <div class="detail-section">
+      <div class="detail-section-head">
+        <div class="detail-section-title">Cash in — income</div>
+        <button class="btn btn-primary btn-sm" onclick="openIncomeLineModal(null, ${p.id})">+ Add income</button>
+      </div>
+      <div class="table-card">
+        <table class="line-table">
+          <thead><tr><th>Description</th><th>Due date</th><th>Predicted</th><th>Actual</th><th>Variance</th><th>Status</th></tr></thead>
+          <tbody>
+            ${income.map(i => {
+              const variance = i.actual != null ? Number(i.actual) - Number(i.predicted) : null;
+              return `<tr onclick="openIncomeLineModal(${i.id}, ${p.id})">
+                <td>${i.description}</td>
+                <td>${i.due_date || '—'}</td>
+                <td class="mono">${fmt(i.predicted)}</td>
+                <td class="mono" style="color:var(--green)">${i.actual != null ? fmt(i.actual) : '<span class="actual-blank">not yet</span>'}</td>
+                <td>${variance != null ? `<span class="${variance >= 0 ? 'variance-pos' : 'variance-neg'}">${variance >= 0 ? '+' : ''}${fmt(variance)}</span>` : '—'}</td>
+                <td>${badge(i.status)}</td>
+              </tr>`;
+            }).join('')}
+            ${income.length === 0 ? '<tr><td colspan="6"><div class="empty-state">No income lines yet — click + Add income</div></td></tr>' : ''}
+            ${income.length > 0 ? `<tr class="totals-row">
+              <td colspan="2"><strong>Total</strong></td>
+              <td class="mono"><strong>${fmt(totalIncomePredicted)}</strong></td>
+              <td class="mono" style="color:var(--green)"><strong>${fmt(totalIncomeActual)}</strong></td>
+              <td colspan="2"></td>
+            </tr>` : ''}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SPEND -->
+    <div class="detail-section">
+      <div class="detail-section-head">
+        <div class="detail-section-title">Cash out — predicted vs actual spend</div>
+        <button class="btn btn-primary btn-sm" onclick="openSpendLineModal(null, ${p.id})">+ Add spend</button>
+      </div>
+      <div class="table-card">
+        <table class="line-table">
+          <thead><tr><th>Category</th><th>Description</th><th>Due date</th><th>Predicted</th><th>Actual</th><th>Variance</th></tr></thead>
+          <tbody>
+            ${spend.map(s => {
+              const variance = s.actual != null ? Number(s.actual) - Number(s.predicted) : null;
+              return `<tr onclick="openSpendLineModal(${s.id}, ${p.id})">
+                <td>${badge(s.category)}</td>
+                <td>${s.description || '—'}</td>
+                <td>${s.due_date || '—'}</td>
+                <td class="mono">${fmt(s.predicted)}</td>
+                <td class="mono" style="color:var(--red)">${s.actual != null ? fmt(s.actual) : '<span class="actual-blank">not yet</span>'}</td>
+                <td>${variance != null ? `<span class="${variance <= 0 ? 'variance-pos' : 'variance-neg'}">${variance > 0 ? '+' : ''}${fmt(variance)}</span>` : '—'}</td>
+              </tr>`;
+            }).join('')}
+            ${spend.length === 0 ? '<tr><td colspan="6"><div class="empty-state">No spend lines yet — click + Add spend</div></td></tr>' : ''}
+            ${spend.length > 0 ? `<tr class="totals-row">
+              <td colspan="3"><strong>Total</strong></td>
+              <td class="mono"><strong>${fmt(totalSpendPredicted)}</strong></td>
+              <td class="mono" style="color:var(--red)"><strong>${fmt(totalSpendActual)}</strong></td>
+              <td></td>
+            </tr>` : ''}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PURCHASE ORDERS -->
+    <div class="detail-section">
+      <div class="detail-section-head">
+        <div class="detail-section-title">Purchase orders linked to this job</div>
+        <button class="btn btn-primary btn-sm" onclick="closeModals();openPOModal()">+ New PO</button>
+      </div>
+      <div class="table-card">
+        <table class="line-table">
+          <thead><tr><th>PO number</th><th>Supplier</th><th>Description</th><th>Predicted</th><th>Actual</th><th>Status</th><th>Due</th></tr></thead>
+          <tbody>
+            ${pos.map(po => `<tr onclick="openPODetail(${po.id})">
+              <td class="mono">${po.num}</td>
+              <td>${po.supplier}</td>
+              <td style="color:var(--txt2)">${po.description || '—'}</td>
+              <td class="mono">${fmt(po.amount)}</td>
+              <td class="mono" style="color:var(--red)">${po.actual_amount != null ? fmt(po.actual_amount) : '<span class="actual-blank">not yet</span>'}</td>
+              <td>${badge(po.status)}</td>
+              <td>${po.due_date || '—'}</td>
+            </tr>`).join('')}
+            ${pos.length === 0 ? '<tr><td colspan="7"><div class="empty-state">No POs linked to this job yet</div></td></tr>' : ''}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ---- Income line modal -------------------------------------
+
+function openIncomeLineModal(lineId, projectId) {
+  const isEdit = !!lineId;
+  document.getElementById('income-line-title').textContent = isEdit ? 'Edit income' : 'Add income';
+  document.getElementById('btn-delete-income').style.display = isEdit ? 'inline-block' : 'none';
+  document.getElementById('il-id').value = lineId || '';
+
+  if (!isEdit) {
+    ['il-desc','il-predicted','il-actual','il-due'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('il-status').value = 'Pending';
+  } else {
+    // find from last loaded data - reload if needed
+    const rows = document.querySelectorAll('#proj-detail-body .line-table tbody tr');
+    // just clear and let user fill — data is in the table visually
+  }
+
+  document.getElementById('btn-save-income').onclick = async () => {
+    const body = {
+      description: document.getElementById('il-desc').value.trim(),
+      predicted:   parseFloat(document.getElementById('il-predicted').value) || 0,
+      actual:      document.getElementById('il-actual').value !== '' ? parseFloat(document.getElementById('il-actual').value) : null,
+      due_date:    document.getElementById('il-due').value.trim(),
+      status:      document.getElementById('il-status').value,
+    };
+    if (!body.description) { alert('Please enter a description'); return; }
+    if (isEdit) {
+      await fetch(`/api/income/${lineId}`, { method:'PUT', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    } else {
+      await fetch(`/api/projects/${projectId}/income`, { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    }
+    closeModals();
+    const data = await get(`/api/projects/${projectId}/detail`);
+    renderDetailBody(data);
+    openModal('modal-proj-detail');
+  };
+
+  document.getElementById('btn-delete-income').onclick = async () => {
+    if (!confirm('Delete this income line?')) return;
+    await fetch(`/api/income/${lineId}`, { method:'DELETE', credentials:'same-origin' });
+    closeModals();
+    const data = await get(`/api/projects/${projectId}/detail`);
+    renderDetailBody(data);
+    openModal('modal-proj-detail');
+  };
+
+  openModal('modal-income-line');
+}
+
+// ---- Spend line modal --------------------------------------
+
+function openSpendLineModal(lineId, projectId) {
+  const isEdit = !!lineId;
+  document.getElementById('spend-line-title').textContent = isEdit ? 'Edit spend' : 'Add spend';
+  document.getElementById('btn-delete-spend').style.display = isEdit ? 'inline-block' : 'none';
+  document.getElementById('sl-id').value = lineId || '';
+
+  if (!isEdit) {
+    ['sl-desc','sl-predicted','sl-actual','sl-due'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('sl-category').value = 'Equipment';
+  }
+
+  document.getElementById('btn-save-spend').onclick = async () => {
+    const body = {
+      category:    document.getElementById('sl-category').value,
+      description: document.getElementById('sl-desc').value.trim(),
+      predicted:   parseFloat(document.getElementById('sl-predicted').value) || 0,
+      actual:      document.getElementById('sl-actual').value !== '' ? parseFloat(document.getElementById('sl-actual').value) : null,
+      due_date:    document.getElementById('sl-due').value.trim(),
+    };
+    if (isEdit) {
+      await fetch(`/api/spend/${lineId}`, { method:'PUT', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    } else {
+      await fetch(`/api/projects/${projectId}/spend`, { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    }
+    closeModals();
+    const data = await get(`/api/projects/${projectId}/detail`);
+    renderDetailBody(data);
+    openModal('modal-proj-detail');
+  };
+
+  document.getElementById('btn-delete-spend').onclick = async () => {
+    if (!confirm('Delete this spend line?')) return;
+    await fetch(`/api/spend/${lineId}`, { method:'DELETE', credentials:'same-origin' });
+    closeModals();
+    const data = await get(`/api/projects/${projectId}/detail`);
+    renderDetailBody(data);
+    openModal('modal-proj-detail');
+  };
+
+  openModal('modal-spend-line');
+}
