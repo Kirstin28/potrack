@@ -514,11 +514,61 @@ function bindTopButtons() {
 
 // ---- Modals ------------------------------------------------
 function bindModalClose() {
-  document.getElementById('modal-backdrop').addEventListener('click', closeModals);
-  document.querySelectorAll('[data-close]').forEach(el => el.addEventListener('click', closeModals));
+  document.getElementById('modal-backdrop').addEventListener('click', () => {
+    // Only close top-level modals, not the project detail if sub-modals are layered
+    const openModals = [...document.querySelectorAll('.modal.open')];
+    if (openModals.length > 1) {
+      // Close all except proj-detail
+      openModals.forEach(m => { if (m.id !== 'modal-proj-detail') m.classList.remove('open'); });
+    } else {
+      closeModals();
+    }
+  });
+  document.querySelectorAll('[data-close]').forEach(el => {
+    el.addEventListener('click', () => {
+      const modal = el.closest('.modal');
+      if (modal) {
+        modal.classList.remove('open');
+        const stillOpen = document.querySelector('.modal.open');
+        if (!stillOpen) document.getElementById('modal-backdrop').classList.remove('open');
+      } else {
+        closeModals();
+      }
+    });
+  });
 }
-function openModal(id) { document.getElementById('modal-backdrop').classList.add('open'); document.getElementById(id).classList.add('open'); }
-function closeModals() { document.getElementById('modal-backdrop').classList.remove('open'); document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open')); }
+function openModal(id) {
+  document.getElementById('modal-backdrop').classList.add('open');
+  // If opening a sub-modal while proj-detail is open, don't close proj-detail
+  const projDetailOpen = document.getElementById('modal-proj-detail')?.classList.contains('open');
+  const subModals = ['modal-po-invoice','modal-income-line','modal-spend-line','modal-po-detail','modal-po','modal-project'];
+  if (projDetailOpen && subModals.includes(id)) {
+    // Keep proj-detail open, just open the new one on top
+    document.getElementById(id).classList.add('open');
+    document.getElementById(id).style.zIndex = '300';
+    return;
+  }
+  document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
+  document.getElementById(id).classList.add('open');
+  document.getElementById(id).style.zIndex = '';
+}
+function closeModals() {
+  document.getElementById('modal-backdrop').classList.remove('open');
+  document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
+}
+function closeTopModal() {
+  // Close the topmost modal, keep project detail open if it was open
+  const open = [...document.querySelectorAll('.modal.open')];
+  if (open.length === 0) return;
+  const top = open[open.length - 1];
+  top.classList.remove('open');
+  // If project detail is still open, keep backdrop
+  if (document.querySelector('.modal.open')) {
+    document.getElementById('modal-backdrop').classList.add('open');
+  } else {
+    document.getElementById('modal-backdrop').classList.remove('open');
+  }
+}
 
 // ---- PO Modal ----------------------------------------------
 function bindPOModal() {
@@ -890,37 +940,45 @@ function renderDetailBody(data, infoBar) {
   `;
   bodyEl.appendChild(mainContent);
 
-  // Bind PO table events after DOM is ready
-  const newPOBtn = document.getElementById('proj-detail-new-po');
+  // Bind all events scoped to bodyEl so they work inside the modal
+  const newPOBtn = bodyEl.querySelector('#proj-detail-new-po');
   if (newPOBtn) newPOBtn.addEventListener('click', () => { closeModals(); openPOModal(); });
 
-  document.querySelectorAll('.proj-po-link').forEach(el => {
+  bodyEl.querySelectorAll('.proj-po-link').forEach(el => {
     el.addEventListener('click', e => {
       e.preventDefault();
+      e.stopPropagation();
       openPODetail(parseInt(el.dataset.poid));
     });
   });
 
-  document.querySelectorAll('.proj-po-invoice-btn').forEach(el => {
+  bodyEl.querySelectorAll('.proj-po-invoice-btn').forEach(el => {
     el.addEventListener('click', e => {
+      e.preventDefault();
       e.stopPropagation();
       openPOInvoiceModal(parseInt(el.dataset.poid), parseInt(el.dataset.projid));
     });
   });
 
   // Bind income rows
-  const addIncomeBtn = document.getElementById('proj-add-income');
-  if (addIncomeBtn) addIncomeBtn.addEventListener('click', () => openIncomeLineModal(null, parseInt(addIncomeBtn.dataset.projid)));
+  const addIncomeBtn = bodyEl.querySelector('#proj-add-income');
+  if (addIncomeBtn) addIncomeBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    openIncomeLineModal(null, parseInt(addIncomeBtn.dataset.projid));
+  });
 
-  document.querySelectorAll('.proj-income-row').forEach(el => {
+  bodyEl.querySelectorAll('.proj-income-row').forEach(el => {
     el.addEventListener('click', () => openIncomeLineModal(parseInt(el.dataset.lid), parseInt(el.dataset.projid)));
   });
 
   // Bind spend rows
-  const addSpendBtn = document.getElementById('proj-add-spend');
-  if (addSpendBtn) addSpendBtn.addEventListener('click', () => openSpendLineModal(null, parseInt(addSpendBtn.dataset.projid)));
+  const addSpendBtn = bodyEl.querySelector('#proj-add-spend');
+  if (addSpendBtn) addSpendBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    openSpendLineModal(null, parseInt(addSpendBtn.dataset.projid));
+  });
 
-  document.querySelectorAll('.proj-spend-row').forEach(el => {
+  bodyEl.querySelectorAll('.proj-spend-row').forEach(el => {
     el.addEventListener('click', () => openSpendLineModal(parseInt(el.dataset.lid), parseInt(el.dataset.projid)));
   });
 }
