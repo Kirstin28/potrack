@@ -713,36 +713,58 @@ async function openPODetail(poId) {
   });
 
   // Save invoice details button handler
-  document.getElementById('btn-edit-from-detail').textContent = 'Save changes';
-  document.getElementById('btn-edit-from-detail').onclick = async () => {
-    const invoiceReceived = document.getElementById('pod-inv-received').checked;
-    // Save invoice data
-    await post(`/api/pos/${poId}/invoice`, {
-      invoice_received: invoiceReceived,
-      invoice_amount:   parseFloat(document.getElementById('pod-inv-amount')?.value)||null,
-      invoice_date:     document.getElementById('pod-inv-date')?.value.trim()||'',
-      invoice_due_date: document.getElementById('pod-inv-due-date')?.value.trim()||'',
-    });
-    // Save paid status
-    await put(`/api/pos/${poId}`, {
-      supplier:    po.supplier,
-      project_id:  po.project_id,
-      description: po.description,
-      amount:      po.amount,
-      status:      po.status,
-      due_date:    po.due_date,
-      invoiced:    po.invoiced,
-      invoiced_date: po.invoiced_date,
-      paid:        document.getElementById('pod-paid').checked,
-      paid_date:   document.getElementById('pod-paid-date')?.value.trim()||'',
-    });
-    await refreshData();
-    // Refresh project detail if open
-    if (detailProjectId) {
-      const freshData = await get(`/api/projects/${detailProjectId}/detail`);
-      renderDetailBody(freshData);
+  const saveBtn = document.getElementById('btn-edit-from-detail');
+  saveBtn.textContent = 'Save changes';
+  saveBtn.onclick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    saveBtn.textContent = 'Saving…';
+    saveBtn.disabled = true;
+    try {
+      const invoiceReceived = document.getElementById('pod-inv-received').checked;
+      const invAmount  = document.getElementById('pod-inv-amount');
+      const invDate    = document.getElementById('pod-inv-date');
+      const invDueDate = document.getElementById('pod-inv-due-date');
+      const paidChk    = document.getElementById('pod-paid');
+      const paidDate   = document.getElementById('pod-paid-date');
+
+      // Save invoice received status
+      await post(`/api/pos/${poId}/invoice`, {
+        invoice_received: invoiceReceived,
+        invoice_amount:   invAmount   ? (parseFloat(invAmount.value)||null)   : null,
+        invoice_date:     invDate     ? invDate.value.trim()                  : '',
+        invoice_due_date: invDueDate  ? invDueDate.value.trim()               : '',
+      });
+
+      // Save paid status
+      await put(`/api/pos/${poId}`, {
+        supplier:      po.supplier,
+        project_id:    po.project_id,
+        description:   po.description,
+        amount:        po.amount,
+        status:        invoiceReceived ? 'Received' : po.status,
+        due_date:      po.due_date,
+        invoiced:      po.invoiced,
+        invoiced_date: po.invoiced_date,
+        paid:          paidChk  ? paidChk.checked         : false,
+        paid_date:     paidDate ? paidDate.value.trim()   : '',
+      });
+
+      await refreshData();
+
+      // Refresh project detail if it's open behind this modal
+      if (detailProjectId) {
+        const freshData = await get(`/api/projects/${detailProjectId}/detail`);
+        renderDetailBody(freshData);
+      }
+
+      saveBtn.textContent = 'Saved ✓';
+      setTimeout(() => closeTopModal(), 600);
+    } catch (err) {
+      alert('Error saving: ' + err.message);
+      saveBtn.textContent = 'Save changes';
+      saveBtn.disabled = false;
     }
-    closeTopModal();
   };
 
   const pushBtn = document.getElementById('btn-push-xero');
