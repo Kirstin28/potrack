@@ -28,10 +28,17 @@ async function initDB() {
         income      NUMERIC DEFAULT 0,
         status      TEXT DEFAULT 'Active',
         notes       TEXT DEFAULT '',
+        start_date  TEXT DEFAULT '',
+        end_date    TEXT DEFAULT '',
+        location    TEXT DEFAULT '',
         created_by  INTEGER REFERENCES users(id),
         created_at  TIMESTAMPTZ DEFAULT NOW(),
         updated_at  TIMESTAMPTZ DEFAULT NOW()
       );
+
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS start_date TEXT DEFAULT '';
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS end_date   TEXT DEFAULT '';
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS location   TEXT DEFAULT '';
 
       CREATE TABLE IF NOT EXISTS purchase_orders (
         id              SERIAL PRIMARY KEY,
