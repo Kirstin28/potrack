@@ -788,7 +788,7 @@ function renderDetailBody(data, infoBar) {
     <div class="detail-section">
       <div class="detail-section-head">
         <div class="detail-section-title">Cash in — income</div>
-        <button class="btn btn-primary btn-sm" onclick="openIncomeLineModal(null, ${p.id})">+ Add income</button>
+        <button class="btn btn-primary btn-sm" id="proj-add-income" data-projid="${p.id}">+ Add income</button>
       </div>
       <div class="table-card">
         <table class="line-table">
@@ -798,7 +798,7 @@ function renderDetailBody(data, infoBar) {
               const variance = i.actual != null ? Number(i.actual) - Number(i.predicted) : null;
               const invoicedPill = i.invoiced ? `<span class="pill-invoiced">✓ Invoiced${i.invoiced_date ? ' · ' + i.invoiced_date : ''}</span>` : `<span class="pill-unpaid">Not invoiced</span>`;
               const paidPill     = i.paid     ? `<span class="pill-paid">✓ Paid${i.paid_date ? ' · ' + i.paid_date : ''}</span>`         : `<span class="pill-unpaid">Unpaid</span>`;
-              return `<tr onclick="openIncomeLineModal(${i.id}, ${p.id})">
+              return `<tr class="proj-income-row" data-lid="${i.id}" data-projid="${p.id}">
                 <td>${i.description}</td>
                 <td>${i.due_date || '—'}</td>
                 <td class="mono">${fmt(i.predicted)}</td>
@@ -824,7 +824,7 @@ function renderDetailBody(data, infoBar) {
     <div class="detail-section">
       <div class="detail-section-head">
         <div class="detail-section-title">Cash out — predicted vs actual spend</div>
-        <button class="btn btn-primary btn-sm" onclick="openSpendLineModal(null, ${p.id})">+ Add spend</button>
+        <button class="btn btn-primary btn-sm" id="proj-add-spend" data-projid="${p.id}">+ Add spend</button>
       </div>
       <div class="table-card">
         <table class="line-table">
@@ -833,7 +833,7 @@ function renderDetailBody(data, infoBar) {
             ${spend.map(s => {
               const variance = s.actual != null ? Number(s.actual) - Number(s.predicted) : null;
               const spaidPill = s.paid ? `<span class="pill-paid">✓ Paid${s.paid_date ? ' · ' + s.paid_date : ''}</span>` : `<span class="pill-unpaid">Unpaid</span>`;
-              return `<tr onclick="openSpendLineModal(${s.id}, ${p.id})">
+              return `<tr class="proj-spend-row" data-lid="${s.id}" data-projid="${p.id}">
                 <td>${badge(s.category)}</td>
                 <td>${s.description || '—'}</td>
                 <td>${s.due_date || '—'}</td>
@@ -859,25 +859,25 @@ function renderDetailBody(data, infoBar) {
     <div class="detail-section">
       <div class="detail-section-head">
         <div class="detail-section-title">Purchase orders linked to this job</div>
-        <button class="btn btn-primary btn-sm" onclick="closeModals();openPOModal()">+ New PO</button>
+        <button class="btn btn-primary btn-sm" id="proj-detail-new-po">+ New PO</button>
       </div>
       <div class="table-card">
         <table class="line-table">
           <thead><tr><th>PO number</th><th>Supplier</th><th>Description</th><th>PO value</th><th>Invoice amount</th><th>Invoice status</th><th>PO status</th><th></th></tr></thead>
-          <tbody>
+          <tbody id="proj-detail-po-tbody">
             ${pos.map(po => {
               const invPill = po.invoice_received
                 ? `<span class="pill-invoice-received">✓ Invoiced${po.invoice_date ? ' · ' + po.invoice_date : ''}${po.invoice_amount != null ? ' · ' + fmt(po.invoice_amount) : ''}${po.invoice_due_date ? ' · Due: ' + po.invoice_due_date : ''}</span>`
                 : `<span class="pill-unpaid">Awaiting invoice</span>`;
               return `<tr>
-                <td class="mono"><a href="#" onclick="openPODetail(${po.id});return false;" style="color:var(--green);font-weight:500;">${po.num}</a></td>
+                <td class="mono"><a href="#" class="proj-po-link" data-poid="${po.id}" style="color:var(--green);font-weight:500;">${po.num}</a></td>
                 <td>${po.supplier}</td>
                 <td style="color:var(--txt2)">${po.description || '—'}</td>
                 <td class="mono">${fmt(po.amount)}</td>
                 <td class="mono" style="color:var(--red)">${po.invoice_amount != null ? fmt(po.invoice_amount) : '<span class="actual-blank">not yet</span>'}</td>
                 <td>${invPill}</td>
                 <td>${badge(po.status)}</td>
-                <td><button class="btn btn-secondary btn-sm" onclick="openPOInvoiceModal(${po.id}, ${p.id})">
+                <td><button class="btn btn-secondary btn-sm proj-po-invoice-btn" data-poid="${po.id}" data-projid="${p.id}">
                   ${po.invoice_received ? 'Edit invoice' : 'Mark invoiced'}
                 </button></td>
               </tr>`;
@@ -889,6 +889,40 @@ function renderDetailBody(data, infoBar) {
     </div>
   `;
   bodyEl.appendChild(mainContent);
+
+  // Bind PO table events after DOM is ready
+  const newPOBtn = document.getElementById('proj-detail-new-po');
+  if (newPOBtn) newPOBtn.addEventListener('click', () => { closeModals(); openPOModal(); });
+
+  document.querySelectorAll('.proj-po-link').forEach(el => {
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      openPODetail(parseInt(el.dataset.poid));
+    });
+  });
+
+  document.querySelectorAll('.proj-po-invoice-btn').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      openPOInvoiceModal(parseInt(el.dataset.poid), parseInt(el.dataset.projid));
+    });
+  });
+
+  // Bind income rows
+  const addIncomeBtn = document.getElementById('proj-add-income');
+  if (addIncomeBtn) addIncomeBtn.addEventListener('click', () => openIncomeLineModal(null, parseInt(addIncomeBtn.dataset.projid)));
+
+  document.querySelectorAll('.proj-income-row').forEach(el => {
+    el.addEventListener('click', () => openIncomeLineModal(parseInt(el.dataset.lid), parseInt(el.dataset.projid)));
+  });
+
+  // Bind spend rows
+  const addSpendBtn = document.getElementById('proj-add-spend');
+  if (addSpendBtn) addSpendBtn.addEventListener('click', () => openSpendLineModal(null, parseInt(addSpendBtn.dataset.projid)));
+
+  document.querySelectorAll('.proj-spend-row').forEach(el => {
+    el.addEventListener('click', () => openSpendLineModal(parseInt(el.dataset.lid), parseInt(el.dataset.projid)));
+  });
 }
 
 // ---- Income line modal -------------------------------------
