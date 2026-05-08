@@ -642,34 +642,119 @@ async function savePOForm() {
 }
 
 async function openPODetail(poId) {
+  // Fetch fresh data in case we're coming from project detail
+  await refreshData();
   const po   = state.pos.find(p => p.id === poId);
+  if (!po) return;
   const proj = state.projects.find(p => p.id === po.project_id)||{};
+
   document.getElementById('po-detail-num').textContent = po.num;
   document.getElementById('po-detail-body').innerHTML = `
     <div class="po-detail-grid">
       <div class="po-detail-field"><div class="pdf-label">Supplier</div><div class="pdf-value">${po.supplier}</div></div>
-      <div class="po-detail-field"><div class="pdf-label">Amount</div><div class="pdf-value mono" style="color:var(--red)">${fmt(po.amount)}</div></div>
+      <div class="po-detail-field"><div class="pdf-label">PO amount</div><div class="pdf-value mono" style="color:var(--red)">${fmt(po.amount)}</div></div>
       <div class="po-detail-field"><div class="pdf-label">Project</div><div class="pdf-value">${po.project_name||'—'}</div></div>
       <div class="po-detail-field"><div class="pdf-label">Job number</div><div class="pdf-value mono">${po.job_num||proj.job_num||'—'}</div></div>
       <div class="po-detail-field"><div class="pdf-label">Description</div><div class="pdf-value">${po.description||'—'}</div></div>
-      <div class="po-detail-field"><div class="pdf-label">Due date</div><div class="pdf-value">${po.due_date||'—'}</div></div>
+      <div class="po-detail-field"><div class="pdf-label">PO due date</div><div class="pdf-value">${po.due_date||'—'}</div></div>
       <div class="po-detail-field"><div class="pdf-label">Status</div><div class="pdf-value">${badge(po.status)}</div></div>
       <div class="po-detail-field"><div class="pdf-label">Added by</div><div class="pdf-value">${po.created_by_name||'—'}</div></div>
-      <div class="po-detail-field"><div class="pdf-label">Supplier invoiced us</div><div class="pdf-value">${po.invoiced ? '<span class="pill-invoiced">✓ Invoiced' + (po.invoiced_date ? ' · ' + po.invoiced_date : '') + '</span>' : '<span class="pill-unpaid">Not yet</span>'}</div></div>
-      <div class="po-detail-field"><div class="pdf-label">We have paid</div><div class="pdf-value">${po.paid ? '<span class="pill-paid">✓ Paid' + (po.paid_date ? ' · ' + po.paid_date : '') + '</span>' : '<span class="pill-unpaid">Not yet</span>'}</div></div>
     </div>
-    ${po.xero_id ? `<div style="background:var(--blue-light);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--blue);">✓ Pushed to Xero — Bill ID: <code>${po.xero_id}</code></div>` : ''}
+
+    <div class="payment-track-box" style="margin-top:14px;">
+      <div class="payment-track-title">Invoice from supplier</div>
+      <div class="field-group">
+        <label><input type="checkbox" id="pod-inv-received" style="width:auto;margin-right:6px;">${po.invoice_received ? '<strong>Invoice received</strong>' : 'Mark invoice as received'}</label>
+      </div>
+      <div id="pod-inv-fields" style="margin-top:12px;${po.invoice_received ? '' : 'display:none;'}">
+        <div class="form-row">
+          <div class="field-group">
+            <label>Invoice amount (£)</label>
+            <input type="number" id="pod-inv-amount" placeholder="0.00" step="0.01" min="0" value="${po.invoice_amount != null ? po.invoice_amount : po.amount}">
+          </div>
+          <div class="field-group">
+            <label>Invoice date <span class="hint">date received</span></label>
+            <input type="text" id="pod-inv-date" placeholder="DD/MM/YY" value="${po.invoice_date||''}">
+          </div>
+        </div>
+        <div class="field-group">
+          <label>Invoice due date <span class="hint">when payment is due to supplier</span></label>
+          <input type="text" id="pod-inv-due-date" placeholder="DD/MM/YY" value="${po.invoice_due_date||''}">
+        </div>
+        <div style="font-size:11px;color:var(--blue);background:var(--blue-light);padding:8px 10px;border-radius:var(--r);margin-top:8px;">
+          Saving this will automatically update the Cash Out section of the linked project.
+        </div>
+      </div>
+    </div>
+
+    <div class="payment-track-box" style="margin-top:10px;">
+      <div class="payment-track-title">Payment to supplier</div>
+      <div class="form-row">
+        <div class="field-group">
+          <label><input type="checkbox" id="pod-paid" style="width:auto;margin-right:6px;">We have paid this invoice</label>
+        </div>
+        <div class="field-group">
+          <label>Date paid</label>
+          <input type="text" id="pod-paid-date" placeholder="DD/MM/YY" value="${po.paid_date||''}">
+        </div>
+      </div>
+    </div>
+
+    ${po.xero_id ? `<div style="background:var(--blue-light);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--blue);margin-top:10px;">✓ Pushed to Xero — Bill ID: <code>${po.xero_id}</code></div>` : ''}
   `;
+
+  // Set checkbox states
+  document.getElementById('pod-inv-received').checked = po.invoice_received||false;
+  document.getElementById('pod-paid').checked         = po.paid||false;
+
+  // Toggle invoice fields visibility
+  document.getElementById('pod-inv-received').addEventListener('change', function() {
+    document.getElementById('pod-inv-fields').style.display = this.checked ? 'block' : 'none';
+  });
+
+  // Save invoice details button handler
+  document.getElementById('btn-edit-from-detail').textContent = 'Save changes';
+  document.getElementById('btn-edit-from-detail').onclick = async () => {
+    const invoiceReceived = document.getElementById('pod-inv-received').checked;
+    // Save invoice data
+    await post(`/api/pos/${poId}/invoice`, {
+      invoice_received: invoiceReceived,
+      invoice_amount:   parseFloat(document.getElementById('pod-inv-amount')?.value)||null,
+      invoice_date:     document.getElementById('pod-inv-date')?.value.trim()||'',
+      invoice_due_date: document.getElementById('pod-inv-due-date')?.value.trim()||'',
+    });
+    // Save paid status
+    await put(`/api/pos/${poId}`, {
+      supplier:    po.supplier,
+      project_id:  po.project_id,
+      description: po.description,
+      amount:      po.amount,
+      status:      po.status,
+      due_date:    po.due_date,
+      invoiced:    po.invoiced,
+      invoiced_date: po.invoiced_date,
+      paid:        document.getElementById('pod-paid').checked,
+      paid_date:   document.getElementById('pod-paid-date')?.value.trim()||'',
+    });
+    await refreshData();
+    // Refresh project detail if open
+    if (detailProjectId) {
+      const freshData = await get(`/api/projects/${detailProjectId}/detail`);
+      renderDetailBody(freshData);
+    }
+    closeTopModal();
+  };
+
   const pushBtn = document.getElementById('btn-push-xero');
   pushBtn.style.display = (state.xero.connected && !po.xero_id) ? 'inline-block' : 'none';
   pushBtn.onclick = async () => {
     pushBtn.textContent='Pushing…'; pushBtn.disabled=true;
     try {
       await post(`/api/xero/push-po/${poId}`);
-      await refreshData(); closeModals(); renderPage(state.currentPage);
+      await refreshData(); closeTopModal(); renderPage(state.currentPage);
     } catch (err) { alert('Xero error: '+err.message); pushBtn.textContent='Push to Xero as bill'; pushBtn.disabled=false; }
   };
-  document.getElementById('btn-edit-from-detail').onclick = () => { closeModals(); openPOModal(poId); };
+
   openModal('modal-po-detail');
 }
 
@@ -913,7 +998,7 @@ function renderDetailBody(data, infoBar) {
       </div>
       <div class="table-card">
         <table class="line-table">
-          <thead><tr><th>PO number</th><th>Supplier</th><th>Description</th><th>PO value</th><th>Invoice amount</th><th>Invoice status</th><th>PO status</th><th></th></tr></thead>
+          <thead><tr><th>PO number</th><th>Supplier</th><th>Description</th><th>PO value</th><th>Invoice amount</th><th>Invoice status</th><th>PO status</th></tr></thead>
           <tbody id="proj-detail-po-tbody">
             ${pos.map(po => {
               const invPill = po.invoice_received
@@ -927,12 +1012,9 @@ function renderDetailBody(data, infoBar) {
                 <td class="mono" style="color:var(--red)">${po.invoice_amount != null ? fmt(po.invoice_amount) : '<span class="actual-blank">not yet</span>'}</td>
                 <td>${invPill}</td>
                 <td>${badge(po.status)}</td>
-                <td><button class="btn btn-secondary btn-sm proj-po-invoice-btn" data-poid="${po.id}" data-projid="${p.id}">
-                  ${po.invoice_received ? 'Edit invoice' : 'Mark invoiced'}
-                </button></td>
               </tr>`;
             }).join('')}
-            ${pos.length === 0 ? '<tr><td colspan="8"><div class="empty-state">No POs linked to this job yet</div></td></tr>' : ''}
+            ${pos.length === 0 ? '<tr><td colspan="7"><div class="empty-state">No POs linked to this job yet</div></td></tr>' : ''}
           </tbody>
         </table>
       </div>
@@ -952,13 +1034,7 @@ function renderDetailBody(data, infoBar) {
     });
   });
 
-  bodyEl.querySelectorAll('.proj-po-invoice-btn').forEach(el => {
-    el.addEventListener('click', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      openPOInvoiceModal(parseInt(el.dataset.poid), parseInt(el.dataset.projid));
-    });
-  });
+  // Mark invoiced button removed — invoice tracking now handled inside PO detail
 
   // Bind income rows
   const addIncomeBtn = bodyEl.querySelector('#proj-add-income');
