@@ -863,18 +863,26 @@ function renderDetailBody(data, infoBar) {
       </div>
       <div class="table-card">
         <table class="line-table">
-          <thead><tr><th>PO number</th><th>Supplier</th><th>Description</th><th>Predicted</th><th>Actual</th><th>Status</th><th>Due</th></tr></thead>
+          <thead><tr><th>PO number</th><th>Supplier</th><th>Description</th><th>PO value</th><th>Invoice amount</th><th>Invoice status</th><th>PO status</th><th></th></tr></thead>
           <tbody>
-            ${pos.map(po => `<tr onclick="openPODetail(${po.id})">
-              <td class="mono">${po.num}</td>
-              <td>${po.supplier}</td>
-              <td style="color:var(--txt2)">${po.description || '—'}</td>
-              <td class="mono">${fmt(po.amount)}</td>
-              <td class="mono" style="color:var(--red)">${po.actual_amount != null ? fmt(po.actual_amount) : '<span class="actual-blank">not yet</span>'}</td>
-              <td>${badge(po.status)}</td>
-              <td>${po.due_date || '—'}</td>
-            </tr>`).join('')}
-            ${pos.length === 0 ? '<tr><td colspan="7"><div class="empty-state">No POs linked to this job yet</div></td></tr>' : ''}
+            ${pos.map(po => {
+              const invPill = po.invoice_received
+                ? `<span class="pill-invoice-received">✓ Invoiced${po.invoice_date ? ' · ' + po.invoice_date : ''}${po.invoice_amount != null ? ' · ' + fmt(po.invoice_amount) : ''}${po.invoice_due_date ? ' · Due: ' + po.invoice_due_date : ''}</span>`
+                : `<span class="pill-unpaid">Awaiting invoice</span>`;
+              return `<tr>
+                <td class="mono"><a href="#" onclick="openPODetail(${po.id});return false;" style="color:var(--green);font-weight:500;">${po.num}</a></td>
+                <td>${po.supplier}</td>
+                <td style="color:var(--txt2)">${po.description || '—'}</td>
+                <td class="mono">${fmt(po.amount)}</td>
+                <td class="mono" style="color:var(--red)">${po.invoice_amount != null ? fmt(po.invoice_amount) : '<span class="actual-blank">not yet</span>'}</td>
+                <td>${invPill}</td>
+                <td>${badge(po.status)}</td>
+                <td><button class="btn btn-secondary btn-sm" onclick="openPOInvoiceModal(${po.id}, ${p.id})">
+                  ${po.invoice_received ? 'Edit invoice' : 'Mark invoiced'}
+                </button></td>
+              </tr>`;
+            }).join('')}
+            ${pos.length === 0 ? '<tr><td colspan="8"><div class="empty-state">No POs linked to this job yet</div></td></tr>' : ''}
           </tbody>
         </table>
       </div>
