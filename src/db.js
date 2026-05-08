@@ -100,7 +100,17 @@ async function initDB() {
         expire  TIMESTAMPTZ NOT NULL
       );
 
-      ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS actual_amount NUMERIC DEFAULT NULL;
+      ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS actual_amount    NUMERIC DEFAULT NULL;
+      ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS invoiced_date   TEXT    DEFAULT '';
+      ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS invoiced        BOOLEAN DEFAULT FALSE;
+      ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS paid_date       TEXT    DEFAULT '';
+      ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS paid            BOOLEAN DEFAULT FALSE;
+
+      ALTER TABLE project_income  ADD COLUMN IF NOT EXISTS paid            BOOLEAN DEFAULT FALSE;
+      ALTER TABLE project_income  ADD COLUMN IF NOT EXISTS paid_date       TEXT    DEFAULT '';
+
+      ALTER TABLE project_spend   ADD COLUMN IF NOT EXISTS paid            BOOLEAN DEFAULT FALSE;
+      ALTER TABLE project_spend   ADD COLUMN IF NOT EXISTS paid_date       TEXT    DEFAULT '';
     `);
 
     const { rows } = await client.query('SELECT COUNT(*) FROM projects');
