@@ -438,6 +438,102 @@
   </div>
 </div>
 
+<!-- PROJECT PO DETAIL MODAL -->
+<div class="modal modal-wide" id="modal-proj-po">
+  <div class="modal-header">
+    <div>
+      <div class="modal-title" id="proj-po-num">Purchase order</div>
+      <div style="font-size:12px;color:var(--txt3);margin-top:2px;" id="proj-po-supplier"></div>
+    </div>
+    <button class="modal-close" data-close="modal-proj-po">✕</button>
+  </div>
+  <div class="modal-body">
+    <input type="hidden" id="proj-po-id">
+
+    <!-- Read-only summary -->
+    <div class="po-detail-grid" id="proj-po-summary"></div>
+
+    <!-- Invoice received section -->
+    <div class="payment-track-box" style="margin-top:14px;">
+      <div class="payment-track-title">Supplier invoice received</div>
+      <div class="form-row">
+        <div class="field-group">
+          <label><input type="checkbox" id="proj-po-invoiced" style="width:auto;margin-right:6px;">Supplier has invoiced us</label>
+          <input type="text" id="proj-po-invoiced-date" placeholder="Invoice date DD/MM/YY" style="margin-top:6px;">
+        </div>
+        <div class="field-group">
+          <label>Actual invoice amount (£) <span class="hint">updates cash out</span></label>
+          <input type="number" id="proj-po-actual" placeholder="Leave blank if same as PO" step="0.01" min="0">
+        </div>
+      </div>
+    </div>
+
+    <!-- Payment section -->
+    <div class="payment-track-box" style="margin-top:10px;">
+      <div class="payment-track-title">Payment made to supplier</div>
+      <div class="form-row">
+        <div class="field-group">
+          <label><input type="checkbox" id="proj-po-paid" style="width:auto;margin-right:6px;">We have paid this</label>
+        </div>
+        <div class="field-group">
+          <label>Date paid</label>
+          <input type="text" id="proj-po-paid-date" placeholder="DD/MM/YY">
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" data-close="modal-proj-po">Cancel</button>
+    <button class="btn btn-secondary" id="proj-po-edit-btn">Edit full PO</button>
+    <button class="btn btn-primary" id="proj-po-save-btn">Save changes</button>
+  </div>
+</div>
+
+<!-- PO INVOICE MODAL -->
+<div class="modal" id="modal-po-invoice">
+  <div class="modal-header">
+    <div>
+      <div class="modal-title" id="po-invoice-title">Invoice received</div>
+      <div style="font-size:12px;color:var(--txt3);margin-top:2px;" id="po-invoice-sub"></div>
+    </div>
+    <button class="modal-close" data-close="modal-po-invoice">✕</button>
+  </div>
+  <div class="modal-body">
+    <input type="hidden" id="poi-po-id">
+    <input type="hidden" id="poi-project-id">
+
+    <div class="po-invoice-summary" id="poi-summary"></div>
+
+    <div class="payment-track-box" style="margin-top:0;">
+      <div class="payment-track-title">Invoice from supplier</div>
+      <div class="field-group">
+        <label><input type="checkbox" id="poi-received" style="width:auto;margin-right:6px;">Invoice received from supplier</label>
+      </div>
+      <div id="poi-fields" style="margin-top:12px;display:none;">
+        <div class="form-row">
+          <div class="field-group">
+            <label>Invoice amount (£)</label>
+            <input type="number" id="poi-amount" placeholder="0.00" step="0.01" min="0">
+            <div style="font-size:11px;color:var(--txt3);margin-top:4px;">Enter the actual invoiced amount — may differ from the original PO</div>
+          </div>
+          <div class="field-group">
+            <label>Invoice date</label>
+            <input type="text" id="poi-date" placeholder="DD/MM/YY">
+          </div>
+        </div>
+        <div class="invoice-flow-hint">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          This will automatically appear in <strong>Cash Out</strong> for this project, where you can then mark it as paid.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" data-close="modal-po-invoice">Cancel</button>
+    <button class="btn btn-primary" id="btn-save-po-invoice">Save</button>
+  </div>
+</div>
+
 <script src="/js/app.js"></script>
 </body>
 </html>
