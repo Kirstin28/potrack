@@ -549,14 +549,20 @@ async function openPOModal(poId) {
     document.getElementById('po-num-display').textContent = po.num;
     document.getElementById('f-supplier').value = po.supplier;
     document.getElementById('f-project-select').value = po.project_id;
-    document.getElementById('f-desc').value     = po.description||'';
-    document.getElementById('f-amount').value   = po.amount;
-    document.getElementById('f-due').value      = po.due_date||'';
-    document.getElementById('f-status').value   = po.status;
+    document.getElementById('f-desc').value         = po.description||'';
+    document.getElementById('f-amount').value       = po.amount;
+    document.getElementById('f-due').value          = po.due_date||'';
+    document.getElementById('f-status').value       = po.status;
+    document.getElementById('f-invoiced').checked   = po.invoiced||false;
+    document.getElementById('f-invoiced-date').value= po.invoiced_date||'';
+    document.getElementById('f-paid').checked       = po.paid||false;
+    document.getElementById('f-paid-date').value    = po.paid_date||'';
   } else {
-    ['f-po-id','f-jobnum','f-supplier','f-desc','f-amount','f-due'].forEach(id => document.getElementById(id).value='');
+    ['f-po-id','f-jobnum','f-supplier','f-desc','f-amount','f-due','f-invoiced-date','f-paid-date'].forEach(id => document.getElementById(id).value='');
     document.getElementById('po-num-display').textContent = 'Enter job number';
-    document.getElementById('f-status').value = 'Draft';
+    document.getElementById('f-status').value    = 'Draft';
+    document.getElementById('f-invoiced').checked = false;
+    document.getElementById('f-paid').checked     = false;
   }
   openModal('modal-po');
 }
@@ -568,11 +574,15 @@ async function savePOForm() {
   if (!supplier) { alert('Please enter a supplier'); return; }
   const body = {
     num, supplier,
-    project_id:  parseInt(document.getElementById('f-project-select').value),
-    description: document.getElementById('f-desc').value.trim(),
-    amount:      parseFloat(document.getElementById('f-amount').value)||0,
-    status:      document.getElementById('f-status').value,
-    due_date:    document.getElementById('f-due').value.trim(),
+    project_id:    parseInt(document.getElementById('f-project-select').value),
+    description:   document.getElementById('f-desc').value.trim(),
+    amount:        parseFloat(document.getElementById('f-amount').value)||0,
+    status:        document.getElementById('f-status').value,
+    due_date:      document.getElementById('f-due').value.trim(),
+    invoiced:      document.getElementById('f-invoiced').checked,
+    invoiced_date: document.getElementById('f-invoiced-date').value.trim(),
+    paid:          document.getElementById('f-paid').checked,
+    paid_date:     document.getElementById('f-paid-date').value.trim(),
   };
   try {
     if (existId) await put(`/api/pos/${existId}`, body);
@@ -595,6 +605,8 @@ async function openPODetail(poId) {
       <div class="po-detail-field"><div class="pdf-label">Due date</div><div class="pdf-value">${po.due_date||'—'}</div></div>
       <div class="po-detail-field"><div class="pdf-label">Status</div><div class="pdf-value">${badge(po.status)}</div></div>
       <div class="po-detail-field"><div class="pdf-label">Added by</div><div class="pdf-value">${po.created_by_name||'—'}</div></div>
+      <div class="po-detail-field"><div class="pdf-label">Supplier invoiced us</div><div class="pdf-value">${po.invoiced ? '<span class="pill-invoiced">✓ Invoiced' + (po.invoiced_date ? ' · ' + po.invoiced_date : '') + '</span>' : '<span class="pill-unpaid">Not yet</span>'}</div></div>
+      <div class="po-detail-field"><div class="pdf-label">We have paid</div><div class="pdf-value">${po.paid ? '<span class="pill-paid">✓ Paid' + (po.paid_date ? ' · ' + po.paid_date : '') + '</span>' : '<span class="pill-unpaid">Not yet</span>'}</div></div>
     </div>
     ${po.xero_id ? `<div style="background:var(--blue-light);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--blue);">✓ Pushed to Xero — Bill ID: <code>${po.xero_id}</code></div>` : ''}
   `;
@@ -780,10 +792,11 @@ function renderDetailBody(data, infoBar) {
       </div>
       <div class="table-card">
         <table class="line-table">
-          <thead><tr><th>Description</th><th>Due date</th><th>Predicted</th><th>Actual</th><th>Variance</th><th>Status</th></tr></thead>
+          <thead><tr><th>Description</th><th>Due date</th><th>Predicted</th><th>Actual</th><th>Variance</th><th>Status</th><th>Payment</th></tr></thead>
           <tbody>
             ${income.map(i => {
               const variance = i.actual != null ? Number(i.actual) - Number(i.predicted) : null;
+              const paidPill = i.paid ? `<span class="pill-paid">✓ Paid${i.paid_date ? ' · ' + i.paid_date : ''}</span>` : `<span class="pill-unpaid">Unpaid</span>`;
               return `<tr onclick="openIncomeLineModal(${i.id}, ${p.id})">
                 <td>${i.description}</td>
                 <td>${i.due_date || '—'}</td>
@@ -791,6 +804,7 @@ function renderDetailBody(data, infoBar) {
                 <td class="mono" style="color:var(--green)">${i.actual != null ? fmt(i.actual) : '<span class="actual-blank">not yet</span>'}</td>
                 <td>${variance != null ? `<span class="${variance >= 0 ? 'variance-pos' : 'variance-neg'}">${variance >= 0 ? '+' : ''}${fmt(variance)}</span>` : '—'}</td>
                 <td>${badge(i.status)}</td>
+                <td>${paidPill}</td>
               </tr>`;
             }).join('')}
             ${income.length === 0 ? '<tr><td colspan="6"><div class="empty-state">No income lines yet — click + Add income</div></td></tr>' : ''}
@@ -813,10 +827,11 @@ function renderDetailBody(data, infoBar) {
       </div>
       <div class="table-card">
         <table class="line-table">
-          <thead><tr><th>Category</th><th>Description</th><th>Due date</th><th>Predicted</th><th>Actual</th><th>Variance</th></tr></thead>
+          <thead><tr><th>Category</th><th>Description</th><th>Due date</th><th>Predicted</th><th>Actual</th><th>Variance</th><th>Payment</th></tr></thead>
           <tbody>
             ${spend.map(s => {
               const variance = s.actual != null ? Number(s.actual) - Number(s.predicted) : null;
+              const spaidPill = s.paid ? `<span class="pill-paid">✓ Paid${s.paid_date ? ' · ' + s.paid_date : ''}</span>` : `<span class="pill-unpaid">Unpaid</span>`;
               return `<tr onclick="openSpendLineModal(${s.id}, ${p.id})">
                 <td>${badge(s.category)}</td>
                 <td>${s.description || '—'}</td>
@@ -824,6 +839,7 @@ function renderDetailBody(data, infoBar) {
                 <td class="mono">${fmt(s.predicted)}</td>
                 <td class="mono" style="color:var(--red)">${s.actual != null ? fmt(s.actual) : '<span class="actual-blank">not yet</span>'}</td>
                 <td>${variance != null ? `<span class="${variance <= 0 ? 'variance-pos' : 'variance-neg'}">${variance > 0 ? '+' : ''}${fmt(variance)}</span>` : '—'}</td>
+                <td>${spaidPill}</td>
               </tr>`;
             }).join('')}
             ${spend.length === 0 ? '<tr><td colspan="6"><div class="empty-state">No spend lines yet — click + Add spend</div></td></tr>' : ''}
@@ -883,6 +899,14 @@ function openIncomeLineModal(lineId, projectId) {
     // just clear and let user fill — data is in the table visually
   }
 
+  // populate paid fields if editing
+  if (isEdit) {
+    // fields will be blank by default; user fills them
+  } else {
+    document.getElementById('il-paid').checked = false;
+    document.getElementById('il-paid-date').value = '';
+  }
+
   document.getElementById('btn-save-income').onclick = async () => {
     const body = {
       description: document.getElementById('il-desc').value.trim(),
@@ -890,6 +914,8 @@ function openIncomeLineModal(lineId, projectId) {
       actual:      document.getElementById('il-actual').value !== '' ? parseFloat(document.getElementById('il-actual').value) : null,
       due_date:    document.getElementById('il-due').value.trim(),
       status:      document.getElementById('il-status').value,
+      paid:        document.getElementById('il-paid').checked,
+      paid_date:   document.getElementById('il-paid-date').value.trim(),
     };
     if (!body.description) { alert('Please enter a description'); return; }
     if (isEdit) {
@@ -924,8 +950,9 @@ function openSpendLineModal(lineId, projectId) {
   document.getElementById('sl-id').value = lineId || '';
 
   if (!isEdit) {
-    ['sl-desc','sl-predicted','sl-actual','sl-due'].forEach(id => document.getElementById(id).value = '');
+    ['sl-desc','sl-predicted','sl-actual','sl-due','sl-paid-date'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('sl-category').value = 'Equipment';
+    document.getElementById('sl-paid').checked = false;
   }
 
   document.getElementById('btn-save-spend').onclick = async () => {
@@ -935,6 +962,8 @@ function openSpendLineModal(lineId, projectId) {
       predicted:   parseFloat(document.getElementById('sl-predicted').value) || 0,
       actual:      document.getElementById('sl-actual').value !== '' ? parseFloat(document.getElementById('sl-actual').value) : null,
       due_date:    document.getElementById('sl-due').value.trim(),
+      paid:        document.getElementById('sl-paid').checked,
+      paid_date:   document.getElementById('sl-paid-date').value.trim(),
     };
     if (isEdit) {
       await fetch(`/api/spend/${lineId}`, { method:'PUT', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
