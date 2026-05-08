@@ -281,6 +281,19 @@
       <div class="field-group"><label>Due date</label><input type="text" id="f-due" placeholder="DD/MM/YY"></div>
     </div>
     <div class="field-group"><label>Status</label><select id="f-status"><option>Draft</option><option>Sent</option><option>Received</option><option>Paid</option></select></div>
+    <div class="payment-track-box">
+      <div class="payment-track-title">Payment tracking</div>
+      <div class="form-row">
+        <div class="field-group">
+          <label><input type="checkbox" id="f-invoiced" style="width:auto;margin-right:6px;">Supplier has invoiced us</label>
+          <input type="text" id="f-invoiced-date" placeholder="Invoice date DD/MM/YY" style="margin-top:6px;">
+        </div>
+        <div class="field-group">
+          <label><input type="checkbox" id="f-paid" style="width:auto;margin-right:6px;">We have paid this</label>
+          <input type="text" id="f-paid-date" placeholder="Payment date DD/MM/YY" style="margin-top:6px;">
+        </div>
+      </div>
+    </div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-danger btn-sm" id="btn-delete-po" style="margin-right:auto;display:none;">Delete</button>
@@ -362,6 +375,18 @@
         <select id="il-status"><option>Pending</option><option>Invoiced</option><option>Received</option><option>Overdue</option></select>
       </div>
     </div>
+    <div class="payment-track-box">
+      <div class="payment-track-title">Payment received</div>
+      <div class="form-row">
+        <div class="field-group">
+          <label><input type="checkbox" id="il-paid" style="width:auto;margin-right:6px;">Payment received</label>
+        </div>
+        <div class="field-group">
+          <label>Date received</label>
+          <input type="text" id="il-paid-date" placeholder="DD/MM/YY">
+        </div>
+      </div>
+    </div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-danger btn-sm" id="btn-delete-income" style="margin-right:auto;display:none;">Delete</button>
@@ -392,6 +417,18 @@
       <div class="field-group"><label>Actual spend (£)</label><input type="number" id="sl-actual" placeholder="Leave blank if not yet spent" step="0.01" min="0"></div>
     </div>
     <div class="field-group"><label>Due date</label><input type="text" id="sl-due" placeholder="DD/MM/YY"></div>
+    <div class="payment-track-box">
+      <div class="payment-track-title">Payment made</div>
+      <div class="form-row">
+        <div class="field-group">
+          <label><input type="checkbox" id="sl-paid" style="width:auto;margin-right:6px;">This has been paid</label>
+        </div>
+        <div class="field-group">
+          <label>Date paid</label>
+          <input type="text" id="sl-paid-date" placeholder="DD/MM/YY">
+        </div>
+      </div>
+    </div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-danger btn-sm" id="btn-delete-spend" style="margin-right:auto;display:none;">Delete</button>
