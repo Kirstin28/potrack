@@ -278,3 +278,25 @@ code { font-family: var(--mono); font-size: 12px; background: var(--surface); bo
 
 /* ---- Totals row ------------------------------------------ */
 .totals-row td { font-weight: 600; background: var(--bg); border-top: 2px solid var(--border-dk) !important; }
+
+/* ---- Payment tracking box -------------------------------- */
+.payment-track-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 12px 14px;
+  margin-top: 14px;
+}
+.payment-track-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--txt3);
+  margin-bottom: 10px;
+}
+
+/* ---- Payment status pills -------------------------------- */
+.pill-paid    { display:inline-flex;align-items:center;gap:4px;background:#D4F4E4;color:#166534;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px; }
+.pill-invoiced{ display:inline-flex;align-items:center;gap:4px;background:var(--blue-light);color:var(--blue);font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px; }
+.pill-unpaid  { display:inline-flex;align-items:center;gap:4px;background:#EBEBEB;color:#555;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px; }
