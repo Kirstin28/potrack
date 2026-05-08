@@ -128,13 +128,12 @@ router.post('/pos', async (req, res) => {
 
 router.put('/pos/:id', async (req, res) => {
   try {
-    const { supplier, project_id, description, amount, status, due_date, invoiced, invoiced_date, paid, paid_date, actual_amount } = req.body;
+    const { supplier, project_id, description, amount, status, due_date, invoiced, invoiced_date, paid, paid_date } = req.body;
     await pool.query(`
       UPDATE purchase_orders SET supplier=$1, project_id=$2, description=$3,
-        amount=$4, status=$5, due_date=$6, invoiced=$7, invoiced_date=$8, paid=$9, paid_date=$10,
-        actual_amount=$11, updated_at=NOW()
-      WHERE id=$12
-    `, [supplier, project_id||null, description||'', amount||0, status, due_date||'', invoiced||false, invoiced_date||'', paid||false, paid_date||'', actual_amount||null, req.params.id]);
+        amount=$4, status=$5, due_date=$6, invoiced=$7, invoiced_date=$8, paid=$9, paid_date=$10, updated_at=NOW()
+      WHERE id=$11
+    `, [supplier, project_id||null, description||'', amount||0, status, due_date||'', invoiced||false, invoiced_date||'', paid||false, paid_date||'', req.params.id]);
 
     const { rows } = await pool.query(`
       SELECT po.*, p.name AS project_name, p.job_num
@@ -325,81 +324,5 @@ router.put('/pos/:id/actual', async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// ---- Mark PO invoice received + auto-create spend line ----
-
-router.post('/pos/:id/invoice', async (req, res) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    const { invoice_received, invoice_amount, invoice_date } = req.body;
-    const poId = req.params.id;
-
-    // Get the PO
-    const poRes = await client.query('SELECT * FROM purchase_orders WHERE id=$1', [poId]);
-    if (!poRes.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'PO not found' }); }
-    const po = poRes.rows[0];
-
-    if (!invoice_received) {
-      // Un-marking invoice — remove linked spend line if it was auto-created
-      if (po.spend_line_id) {
-        await client.query('DELETE FROM project_spend WHERE id=$1 AND description LIKE $2', [po.spend_line_id, 'PO:%']);
-      }
-      await client.query(
-        'UPDATE purchase_orders SET invoice_received=false, invoice_amount=NULL, invoice_date=$1, spend_line_id=NULL WHERE id=$2',
-        [invoice_date||'', poId]
-      );
-      await client.query('COMMIT');
-      const updated = await pool.query(`SELECT po.*, p.name as project_name, p.job_num FROM purchase_orders po LEFT JOIN projects p ON po.project_id=p.id WHERE po.id=$1`, [poId]);
-      return res.json(updated.rows[0]);
-    }
-
-    const amount = parseFloat(invoice_amount) || 0;
-    let spendLineId = po.spend_line_id;
-
-    if (po.project_id) {
-      if (spendLineId) {
-        // Update existing spend line
-        await client.query(
-          'UPDATE project_spend SET actual=$1, due_date=$2, description=$3 WHERE id=$4',
-          [amount, invoice_date||'', `PO: ${po.num} — ${po.supplier}`, spendLineId]
-        );
-      } else {
-        // Create new spend line in cash out
-        const slRes = await client.query(`
-          INSERT INTO project_spend (project_id, category, description, predicted, actual, due_date, created_by)
-          VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
-        `, [
-          po.project_id,
-          'Equipment',
-          `PO: ${po.num} — ${po.supplier}`,
-          Number(po.amount),
-          amount,
-          invoice_date||'',
-          req.session.userId
-        ]);
-        spendLineId = slRes.rows[0].id;
-      }
-    }
-
-    // Update PO with invoice details
-    await client.query(
-      'UPDATE purchase_orders SET invoice_received=true, invoice_amount=$1, invoice_date=$2, spend_line_id=$3, status=$4 WHERE id=$5',
-      [amount, invoice_date||'', spendLineId, 'Received', poId]
-    );
-
-    await client.query('COMMIT');
-
-    const updated = await pool.query(`SELECT po.*, p.name as project_name, p.job_num FROM purchase_orders po LEFT JOIN projects p ON po.project_id=p.id WHERE po.id=$1`, [poId]);
-    res.json({ po: updated.rows[0], spend_line_id: spendLineId });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  } finally {
-    client.release();
   }
 });
