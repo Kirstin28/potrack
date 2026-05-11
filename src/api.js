@@ -376,8 +376,8 @@ router.post('/pos/:id/invoice', async (req, res) => {
       } else {
         // Create new spend line
         const slRes = await client.query(`
-          INSERT INTO project_spend (project_id, category, description, predicted, actual, due_date, created_by)
-          VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id
+          INSERT INTO project_spend (project_id, category, description, predicted, actual, due_date, paid, paid_date, created_by)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id
         `, [
           po.project_id,
           'Equipment',
@@ -385,6 +385,8 @@ router.post('/pos/:id/invoice', async (req, res) => {
           Number(po.amount),
           amount,
           invoice_due_date||invoice_date||'',
+          false,
+          '',
           req.session.userId
         ]);
         spendLineId = slRes.rows[0].id;
