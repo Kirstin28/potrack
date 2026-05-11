@@ -642,10 +642,15 @@ async function savePOForm() {
 }
 
 async function openPODetail(poId) {
-  // Fetch fresh data in case we're coming from project detail
+  // Always fetch fresh data to ensure paid/invoice status is current
   await refreshData();
-  const po   = state.pos.find(p => p.id === poId);
+  const po = state.pos.find(p => p.id === poId);
   if (!po) return;
+  // Also fetch directly from server in case state is stale
+  try {
+    const fresh = await get(`/api/pos/${poId}`);
+    if (fresh && fresh.id) Object.assign(po, fresh);
+  } catch(e) { /* use state version if fetch fails */ }
   const proj = state.projects.find(p => p.id === po.project_id)||{};
 
   document.getElementById('po-detail-num').textContent = po.num;
@@ -705,7 +710,7 @@ async function openPODetail(poId) {
 
   // Set checkbox states
   document.getElementById('pod-inv-received').checked = po.invoice_received||false;
-  document.getElementById('pod-paid').checked         = po.paid||false;
+  document.getElementById('pod-paid').checked         = po.paid || po.status === 'Paid' || false;
 
   // Toggle invoice fields visibility
   document.getElementById('pod-inv-received').addEventListener('change', function() {
@@ -713,13 +718,12 @@ async function openPODetail(poId) {
   });
 
   // Save invoice details button handler
-  const saveBtn = document.getElementById('btn-edit-from-detail');
-  saveBtn.textContent = 'Save changes';
-  saveBtn.disabled = false;
-  // Clone to remove any previous listeners
-  const newSaveBtn = saveBtn.cloneNode(true);
-  saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
-  newSaveBtn.addEventListener('click', async (e) => {
+  const newSaveBtn = document.getElementById('btn-edit-from-detail');
+  newSaveBtn.textContent = 'Save changes';
+  newSaveBtn.disabled = false;
+  newSaveBtn.onclick = null; // Clear any previous handler
+  newSaveBtn.addEventListener('click', async function poDetailSaveHandler(e) {
+    newSaveBtn.removeEventListener('click', poDetailSaveHandler);
     e.preventDefault();
     e.stopPropagation();
     newSaveBtn.textContent = 'Saving…';
@@ -760,7 +764,7 @@ async function openPODetail(poId) {
           project_id:    po.project_id    || null,
           description:   po.description   || '',
           amount:        Number(po.amount) || 0,
-          status:        invoiceReceived ? 'Received' : (po.status || 'Draft'),
+          status:        paid ? 'Paid' : (invoiceReceived ? 'Received' : (po.status || 'Draft')),
           due_date:      po.due_date      || '',
           invoiced:      po.invoiced      || false,
           invoiced_date: po.invoiced_date || '',
