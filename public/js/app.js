@@ -936,6 +936,26 @@ function renderDetailBody(data, infoBar) {
   const posWithoutSpendLine    = pos.filter(po => !po.spend_line_id);
   const posWithSpendLine       = pos.filter(po => po.spend_line_id);
 
+  // VAT calculations
+  const vatOnIncome     = income.reduce((a, i) => {
+    if (i.vat_amount != null) return a + Number(i.vat_amount);
+    if (i.vat_rate) return a + (Number(i.actual || i.predicted) * Number(i.vat_rate) / 100);
+    return a;
+  }, 0);
+  const vatReclaimable  = spend.reduce((a, s) => {
+    if (!s.vat_reclaimable) return a;
+    if (s.vat_amount != null) return a + Number(s.vat_amount);
+    if (s.vat_rate) return a + (Number(s.actual || s.predicted) * Number(s.vat_rate) / 100);
+    return a;
+  }, 0);
+  const vatNonReclaimable = spend.reduce((a, s) => {
+    if (s.vat_reclaimable) return a;
+    if (s.vat_amount != null) return a + Number(s.vat_amount);
+    if (s.vat_rate) return a + (Number(s.actual || s.predicted) * Number(s.vat_rate) / 100);
+    return a;
+  }, 0);
+  const vatNetPosition  = vatOnIncome - vatReclaimable;
+
   const totalSpendPredicted  = spend.reduce((a, s) => a + Number(s.predicted), 0)
                              + posWithoutSpendLine.reduce((a, po) => a + Number(po.amount), 0);
   const totalSpendActual     = spend.reduce((a, s) => a + Number(s.actual || 0), 0)
@@ -974,6 +994,35 @@ function renderDetailBody(data, infoBar) {
       </div>
     </div>
 
+    <!-- VAT SUMMARY -->
+    <div class="detail-section">
+      <div class="detail-section-head">
+        <div class="detail-section-title">VAT summary</div>
+      </div>
+      <div class="vat-summary-grid">
+        <div class="vat-card">
+          <div class="vat-label">VAT on income (output tax)</div>
+          <div class="vat-value" style="color:var(--red)">${fmt(vatOnIncome)}</div>
+          <div class="vat-sub">VAT you've charged / will charge clients</div>
+        </div>
+        <div class="vat-card">
+          <div class="vat-label">VAT reclaimable (input tax)</div>
+          <div class="vat-value" style="color:var(--green)">${fmt(vatReclaimable)}</div>
+          <div class="vat-sub">VAT on expenses you can reclaim</div>
+        </div>
+        <div class="vat-card">
+          <div class="vat-label">Non-reclaimable VAT</div>
+          <div class="vat-value" style="color:var(--amber)">${fmt(vatNonReclaimable)}</div>
+          <div class="vat-sub">VAT on expenses you cannot reclaim</div>
+        </div>
+        <div class="vat-card" style="border-top:2px solid var(--border-dk);">
+          <div class="vat-label">Net VAT position</div>
+          <div class="vat-value" style="color:${vatNetPosition >= 0 ? 'var(--red)' : 'var(--green)'}">${fmt(Math.abs(vatNetPosition))}</div>
+          <div class="vat-sub">${vatNetPosition >= 0 ? 'VAT owed to HMRC' : 'VAT refund due from HMRC'}</div>
+        </div>
+      </div>
+    </div>
+
     <!-- INCOME -->
     <div class="detail-section">
       <div class="detail-section-head">
@@ -982,18 +1031,20 @@ function renderDetailBody(data, infoBar) {
       </div>
       <div class="table-card">
         <table class="line-table">
-          <thead><tr><th>Description</th><th>Due date</th><th>Predicted</th><th>Actual</th><th>Variance</th><th>Invoiced</th><th>Paid</th></tr></thead>
+          <thead><tr><th>Description</th><th>Due date</th><th>Predicted</th><th>Actual</th><th>Variance</th><th>VAT</th><th>Invoiced</th><th>Paid</th></tr></thead>
           <tbody>
             ${income.map(i => {
               const variance = i.actual != null ? Number(i.actual) - Number(i.predicted) : null;
               const invoicedPill = i.invoiced ? `<span class="pill-invoiced">✓ Invoiced${i.invoiced_date ? ' · ' + i.invoiced_date : ''}</span>` : `<span class="pill-unpaid">Not invoiced</span>`;
               const paidPill     = i.paid     ? `<span class="pill-paid">✓ Paid${i.paid_date ? ' · ' + i.paid_date : ''}</span>`         : `<span class="pill-unpaid">Unpaid</span>`;
+              const vatStr = i.vat_amount != null ? fmt(i.vat_amount) : (i.vat_rate ? fmt(Number(i.actual||i.predicted)*Number(i.vat_rate)/100) + ' (' + i.vat_rate + '%)' : '—');
               return `<tr class="proj-income-row" data-lid="${i.id}" data-projid="${p.id}">
                 <td>${i.description}</td>
                 <td>${i.due_date || '—'}</td>
                 <td class="mono">${fmt(i.predicted)}</td>
                 <td class="mono" style="color:var(--green)">${i.actual != null ? fmt(i.actual) : '<span class="actual-blank">not yet</span>'}</td>
                 <td>${variance != null ? `<span class="${variance >= 0 ? 'variance-pos' : 'variance-neg'}">${variance >= 0 ? '+' : ''}${fmt(variance)}</span>` : '—'}</td>
+                <td class="mono" style="color:var(--amber)">${vatStr}</td>
                 <td>${invoicedPill}</td>
                 <td>${paidPill}</td>
               </tr>`;
@@ -1018,11 +1069,13 @@ function renderDetailBody(data, infoBar) {
       </div>
       <div class="table-card">
         <table class="line-table">
-          <thead><tr><th>Category</th><th>Description</th><th>Due date</th><th>Predicted</th><th>Actual</th><th>Variance</th><th>Payment</th></tr></thead>
+          <thead><tr><th>Category</th><th>Description</th><th>Due date</th><th>Predicted</th><th>Actual</th><th>Variance</th><th>VAT</th><th>Payment</th></tr></thead>
           <tbody>
             ${spend.map(s => {
               const variance = s.actual != null ? Number(s.actual) - Number(s.predicted) : null;
               const spaidPill = s.paid ? `<span class="pill-paid">✓ Paid${s.paid_date ? ' · ' + s.paid_date : ''}</span>` : `<span class="pill-unpaid">Unpaid</span>`;
+              const sVatStr = s.vat_amount != null ? fmt(s.vat_amount) : (s.vat_rate ? fmt(Number(s.actual||s.predicted)*Number(s.vat_rate)/100) + ' (' + s.vat_rate + '%)' : '—');
+              const sVatLabel = s.vat_reclaimable === false ? '<span style="font-size:10px;color:var(--txt3)"> N/R</span>' : '';
               return `<tr class="proj-spend-row" data-lid="${s.id}" data-projid="${p.id}">
                 <td>${badge(s.category)}</td>
                 <td>${s.description || '—'}</td>
@@ -1030,6 +1083,7 @@ function renderDetailBody(data, infoBar) {
                 <td class="mono">${fmt(s.predicted)}</td>
                 <td class="mono" style="color:var(--red)">${s.actual != null ? fmt(s.actual) : '<span class="actual-blank">not yet</span>'}</td>
                 <td>${variance != null ? `<span class="${variance <= 0 ? 'variance-pos' : 'variance-neg'}">${variance > 0 ? '+' : ''}${fmt(variance)}</span>` : '—'}</td>
+                <td class="mono" style="color:var(--amber)">${sVatStr}${sVatLabel}</td>
                 <td>${spaidPill}</td>
               </tr>`;
             }).join('')}
@@ -1136,6 +1190,8 @@ function openIncomeLineModal(lineId, projectId) {
     document.getElementById('il-invoiced-date').value = '';
     document.getElementById('il-paid').checked       = false;
     document.getElementById('il-paid-date').value    = '';
+    document.getElementById('il-vat-rate').value     = '';
+    document.getElementById('il-vat-amount').value   = '';
   }
 
   document.getElementById('btn-save-income').onclick = async () => {
@@ -1149,6 +1205,8 @@ function openIncomeLineModal(lineId, projectId) {
       invoiced_date: document.getElementById('il-invoiced-date').value.trim(),
       paid:          document.getElementById('il-paid').checked,
       paid_date:     document.getElementById('il-paid-date').value.trim(),
+      vat_rate:      parseFloat(document.getElementById('il-vat-rate').value) || 0,
+      vat_amount:    document.getElementById('il-vat-amount').value !== '' ? parseFloat(document.getElementById('il-vat-amount').value) : null,
     };
     if (!body.description) { alert('Please enter a description'); return; }
     if (isEdit) {
@@ -1183,9 +1241,10 @@ function openSpendLineModal(lineId, projectId) {
   document.getElementById('sl-id').value = lineId || '';
 
   if (!isEdit) {
-    ['sl-desc','sl-predicted','sl-actual','sl-due','sl-paid-date'].forEach(id => document.getElementById(id).value = '');
+    ['sl-desc','sl-predicted','sl-actual','sl-due','sl-paid-date','sl-vat-rate','sl-vat-amount'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('sl-category').value = 'Equipment';
     document.getElementById('sl-paid').checked = false;
+    document.getElementById('sl-vat-reclaimable').checked = true;
   }
 
   document.getElementById('btn-save-spend').onclick = async () => {
@@ -1195,8 +1254,11 @@ function openSpendLineModal(lineId, projectId) {
       predicted:   parseFloat(document.getElementById('sl-predicted').value) || 0,
       actual:      document.getElementById('sl-actual').value !== '' ? parseFloat(document.getElementById('sl-actual').value) : null,
       due_date:    document.getElementById('sl-due').value.trim(),
-      paid:        document.getElementById('sl-paid').checked,
-      paid_date:   document.getElementById('sl-paid-date').value.trim(),
+      paid:           document.getElementById('sl-paid').checked,
+      paid_date:      document.getElementById('sl-paid-date').value.trim(),
+      vat_rate:       parseFloat(document.getElementById('sl-vat-rate').value) || 0,
+      vat_amount:     document.getElementById('sl-vat-amount').value !== '' ? parseFloat(document.getElementById('sl-vat-amount').value) : null,
+      vat_reclaimable: document.getElementById('sl-vat-reclaimable').checked,
     };
     if (isEdit) {
       await fetch(`/api/spend/${lineId}`, { method:'PUT', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
