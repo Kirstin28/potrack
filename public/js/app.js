@@ -736,18 +736,19 @@ async function openPODetail(poId) {
         invoice_due_date: invDueDate  ? invDueDate.value.trim()               : '',
       });
 
-      // Save paid status
+      // Save paid status — fetch fresh PO data after invoice save to avoid stale values
+      const latestPO = await get(`/api/pos/${poId}`).catch(() => po);
       await put(`/api/pos/${poId}`, {
-        supplier:      po.supplier,
-        project_id:    po.project_id,
-        description:   po.description,
-        amount:        po.amount,
-        status:        invoiceReceived ? 'Received' : po.status,
-        due_date:      po.due_date,
-        invoiced:      po.invoiced,
-        invoiced_date: po.invoiced_date,
-        paid:          paidChk  ? paidChk.checked         : false,
-        paid_date:     paidDate ? paidDate.value.trim()   : '',
+        supplier:      latestPO.supplier,
+        project_id:    latestPO.project_id,
+        description:   latestPO.description    || '',
+        amount:        latestPO.amount         || 0,
+        status:        invoiceReceived ? 'Received' : (latestPO.status || 'Draft'),
+        due_date:      latestPO.due_date       || '',
+        invoiced:      latestPO.invoiced       || false,
+        invoiced_date: latestPO.invoiced_date  || '',
+        paid:          paidChk ? paidChk.checked : false,
+        paid_date:     paidDate ? paidDate.value.trim() : '',
       });
 
       await refreshData();
