@@ -722,38 +722,55 @@ async function openPODetail(poId) {
     saveBtn.disabled = true;
     try {
       const invoiceReceived = document.getElementById('pod-inv-received').checked;
-      const invAmount  = document.getElementById('pod-inv-amount');
-      const invDate    = document.getElementById('pod-inv-date');
-      const invDueDate = document.getElementById('pod-inv-due-date');
-      const paidChk    = document.getElementById('pod-paid');
-      const paidDate   = document.getElementById('pod-paid-date');
+      const invAmountEl  = document.getElementById('pod-inv-amount');
+      const invDateEl    = document.getElementById('pod-inv-date');
+      const invDueDateEl = document.getElementById('pod-inv-due-date');
+      const paidChkEl    = document.getElementById('pod-paid');
+      const paidDateEl   = document.getElementById('pod-paid-date');
 
-      // Save invoice received status
-      await post(`/api/pos/${poId}/invoice`, {
-        invoice_received: invoiceReceived,
-        invoice_amount:   invAmount   ? (parseFloat(invAmount.value)||null)   : null,
-        invoice_date:     invDate     ? invDate.value.trim()                  : '',
-        invoice_due_date: invDueDate  ? invDueDate.value.trim()               : '',
-      });
+      const invoiceAmount  = invAmountEl  ? (parseFloat(invAmountEl.value)  || null) : null;
+      const invoiceDate    = invDateEl    ? invDateEl.value.trim()    : '';
+      const invoiceDueDate = invDueDateEl ? invDueDateEl.value.trim() : '';
+      const paid           = paidChkEl    ? paidChkEl.checked         : false;
+      const paidDate       = paidDateEl   ? paidDateEl.value.trim()   : '';
 
-      // Save paid status — fetch fresh PO data after invoice save to avoid stale values
-      const latestPO = await get(`/api/pos/${poId}`).catch(() => po);
-      await put(`/api/pos/${poId}`, {
-        supplier:      latestPO.supplier,
-        project_id:    latestPO.project_id,
-        description:   latestPO.description    || '',
-        amount:        latestPO.amount         || 0,
-        status:        invoiceReceived ? 'Received' : (latestPO.status || 'Draft'),
-        due_date:      latestPO.due_date       || '',
-        invoiced:      latestPO.invoiced       || false,
-        invoiced_date: latestPO.invoiced_date  || '',
-        paid:          paidChk ? paidChk.checked : false,
-        paid_date:     paidDate ? paidDate.value.trim() : '',
+      // Single combined update — invoice details + paid status in one route
+      const res1 = await fetch(`/api/pos/${poId}/invoice`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoice_received: invoiceReceived, invoice_amount: invoiceAmount, invoice_date: invoiceDate, invoice_due_date: invoiceDueDate })
       });
+      if (!res1.ok) {
+        const d = await res1.json().catch(() => ({}));
+        throw new Error(d.error || `Invoice save failed (${res1.status})`);
+      }
+
+      // Update paid status directly
+      const res2 = await fetch(`/api/pos/${poId}`, {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplier:      po.supplier      || '',
+          project_id:    po.project_id    || null,
+          description:   po.description   || '',
+          amount:        Number(po.amount) || 0,
+          status:        invoiceReceived ? 'Received' : (po.status || 'Draft'),
+          due_date:      po.due_date      || '',
+          invoiced:      po.invoiced      || false,
+          invoiced_date: po.invoiced_date || '',
+          paid,
+          paid_date:     paidDate,
+        })
+      });
+      if (!res2.ok) {
+        const d = await res2.json().catch(() => ({}));
+        throw new Error(d.error || `Paid status save failed (${res2.status})`);
+      }
 
       await refreshData();
 
-      // Refresh project detail if it's open behind this modal
       if (detailProjectId) {
         const freshData = await get(`/api/projects/${detailProjectId}/detail`);
         renderDetailBody(freshData);
