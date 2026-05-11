@@ -13,7 +13,7 @@ router.get('/projects', async (req, res) => {
     const { rows } = await pool.query(`
       SELECT p.*,
         u.name AS created_by_name,
-        COALESCE(SUM(CASE WHEN po.status != 'Paid' THEN po.amount ELSE 0 END), 0) AS due_out,
+        COALESCE(SUM(CASE WHEN po.status != 'Paid' AND po.spend_line_id IS NULL THEN po.amount ELSE 0 END), 0) AS due_out,
         COALESCE(SUM(po.amount), 0) AS po_total,
         COUNT(po.id) AS po_count
       FROM projects p
