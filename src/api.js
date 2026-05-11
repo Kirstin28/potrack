@@ -87,22 +87,6 @@ router.get('/pos', async (req, res) => {
   }
 });
 
-router.get('/pos/:id', async (req, res) => {
-  try {
-    const { rows } = await pool.query(`
-      SELECT po.*, p.name AS project_name, p.job_num, u.name AS created_by_name
-      FROM purchase_orders po
-      LEFT JOIN projects p ON po.project_id = p.id
-      LEFT JOIN users u ON po.created_by = u.id
-      WHERE po.id = $1
-    `, [req.params.id]);
-    if (!rows[0]) return res.status(404).json({ error: 'Not found' });
-    res.json(rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
 router.get('/pos/next-num/:jobNum', async (req, res) => {
   try {
     const padded = String(req.params.jobNum).trim().padStart(3, '0').slice(0, 15);
@@ -115,6 +99,22 @@ router.get('/pos/next-num/:jobNum', async (req, res) => {
     const nums = rows.map(r => parseInt(r.num.split('-')[1]) || 0);
     const next = String(Math.max(...nums) + 1).padStart(3, '0');
     res.json({ num: prefix + next });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/pos/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT po.*, p.name AS project_name, p.job_num, u.name AS created_by_name
+      FROM purchase_orders po
+      LEFT JOIN projects p ON po.project_id = p.id
+      LEFT JOIN users u ON po.created_by = u.id
+      WHERE po.id = $1
+    `, [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+    res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
