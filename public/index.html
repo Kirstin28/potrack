@@ -375,6 +375,19 @@
         <select id="il-status"><option>Pending</option><option>Invoiced</option><option>Received</option><option>Overdue</option></select>
       </div>
     </div>
+    <div class="payment-track-box" style="margin-top:14px;">
+      <div class="payment-track-title">VAT</div>
+      <div class="form-row">
+        <div class="field-group">
+          <label>VAT rate <span class="hint">e.g. 20 for 20%</span></label>
+          <input type="number" id="il-vat-rate" placeholder="20" step="0.1" min="0" max="100">
+        </div>
+        <div class="field-group">
+          <label>VAT amount (£) <span class="hint">auto-calculated or override</span></label>
+          <input type="number" id="il-vat-amount" placeholder="Auto" step="0.01" min="0">
+        </div>
+      </div>
+    </div>
     <div class="payment-track-box">
       <div class="payment-track-title">Invoice &amp; payment tracking</div>
       <div class="form-row">
@@ -418,6 +431,22 @@
       <div class="field-group"><label>Actual spend (£)</label><input type="number" id="sl-actual" placeholder="Leave blank if not yet spent" step="0.01" min="0"></div>
     </div>
     <div class="field-group"><label>Due date</label><input type="text" id="sl-due" placeholder="DD/MM/YY"></div>
+    <div class="payment-track-box" style="margin-top:14px;">
+      <div class="payment-track-title">VAT</div>
+      <div class="form-row">
+        <div class="field-group">
+          <label>VAT rate <span class="hint">e.g. 20 for 20%</span></label>
+          <input type="number" id="sl-vat-rate" placeholder="20" step="0.1" min="0" max="100">
+        </div>
+        <div class="field-group">
+          <label>VAT amount (£) <span class="hint">auto-calculated or override</span></label>
+          <input type="number" id="sl-vat-amount" placeholder="Auto" step="0.01" min="0">
+        </div>
+      </div>
+      <div class="field-group" style="margin-top:10px;">
+        <label><input type="checkbox" id="sl-vat-reclaimable" style="width:auto;margin-right:6px;" checked>VAT reclaimable (input tax)</label>
+      </div>
+    </div>
     <div class="payment-track-box">
       <div class="payment-track-title">Payment made</div>
       <div class="form-row">
