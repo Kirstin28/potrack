@@ -153,10 +153,14 @@ router.put('/pos/:id', async (req, res) => {
 
     // If marked as paid, also update the linked spend line
     if (paid) {
-      await pool.query(`
-        UPDATE project_spend SET paid=true, paid_date=$1
-        WHERE id = (SELECT spend_line_id FROM purchase_orders WHERE id=$2) AND spend_line_id IS NOT NULL
-      `, [paid_date||'', req.params.id]);
+      const poRow = await pool.query('SELECT spend_line_id FROM purchase_orders WHERE id=$1', [req.params.id]);
+      const spendLineId = poRow.rows[0]?.spend_line_id;
+      if (spendLineId) {
+        await pool.query(
+          'UPDATE project_spend SET paid=true, paid_date=$1 WHERE id=$2',
+          [paid_date||'', spendLineId]
+        );
+      }
     }
 
     const { rows } = await pool.query(`
