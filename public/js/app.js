@@ -230,8 +230,8 @@ function renderProjects() {
   if (hideCompleted) projects = projects.filter(p => p.status !== 'Complete');
 
   document.getElementById('full-proj-table').innerHTML = tableWrap(
-    ['Project','Job no.','Client','Dates','Budget','Due in','Due out','Status'],
-    ['22%','8%','13%','16%','10%','10%','10%','11%'],
+    ['Project','Job no.','Client','Dates','Budget','Due in','Paid out','Awaiting invoice','Due out','Status'],
+    ['18%','7%','11%','13%','8%','8%','8%','9%','9%','9%'],
     projects.length ? projects.map(p => `<tr>
       <td><a href="#" onclick="openProjectDetail(${p.id});return false;" style="color:var(--green);font-weight:500;">${p.name}</a></td>
       <td class="mono">${p.job_num}</td>
@@ -239,10 +239,12 @@ function renderProjects() {
       <td style="font-size:12px;color:var(--txt2)">${p.start_date && p.end_date ? p.start_date + ' → ' + p.end_date : p.start_date || '—'}</td>
       <td class="mono">${fmt(p.budget)}</td>
       <td class="mono" style="color:var(--green)">${fmt(p.income)}</td>
+      <td class="mono" style="color:#166534">${fmt(p.paid_out)}</td>
+      <td class="mono" style="color:var(--amber)">${fmt(p.awaiting_invoice)}</td>
       <td class="mono" style="color:var(--red)">${fmt(p.due_out)}</td>
       <td>${badge(p.status)}</td>
       </tr>`).join('') :
-    '<tr><td colspan="8"><div class="empty-state">No projects yet</div></td></tr>'
+    '<tr><td colspan="10"><div class="empty-state">No projects yet</div></td></tr>'
   );
 
   document.getElementById('hide-completed')?.addEventListener('change', renderProjects);
