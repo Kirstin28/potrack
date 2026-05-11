@@ -715,11 +715,15 @@ async function openPODetail(poId) {
   // Save invoice details button handler
   const saveBtn = document.getElementById('btn-edit-from-detail');
   saveBtn.textContent = 'Save changes';
-  saveBtn.onclick = async (e) => {
+  saveBtn.disabled = false;
+  // Clone to remove any previous listeners
+  const newSaveBtn = saveBtn.cloneNode(true);
+  saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+  newSaveBtn.addEventListener('click', async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    saveBtn.textContent = 'Saving…';
-    saveBtn.disabled = true;
+    newSaveBtn.textContent = 'Saving…';
+    newSaveBtn.disabled = true;
     try {
       const invoiceReceived = document.getElementById('pod-inv-received').checked;
       const invAmountEl  = document.getElementById('pod-inv-amount');
@@ -776,14 +780,14 @@ async function openPODetail(poId) {
         renderDetailBody(freshData);
       }
 
-      saveBtn.textContent = 'Saved ✓';
+      newSaveBtn.textContent = 'Saved ✓';
       setTimeout(() => closeTopModal(), 600);
     } catch (err) {
       alert('Error saving: ' + err.message);
-      saveBtn.textContent = 'Save changes';
-      saveBtn.disabled = false;
+      newSaveBtn.textContent = 'Save changes';
+      newSaveBtn.disabled = false;
     }
-  };
+  });
 
   const pushBtn = document.getElementById('btn-push-xero');
   pushBtn.style.display = (state.xero.connected && !po.xero_id) ? 'inline-block' : 'none';
