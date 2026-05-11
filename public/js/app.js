@@ -903,11 +903,16 @@ function renderDetailBody(data, infoBar) {
   // Totals
   const totalIncomePredicted = income.reduce((a, i) => a + Number(i.predicted), 0);
   const totalIncomeActual    = income.reduce((a, i) => a + Number(i.actual || 0), 0);
+  // Only include POs in totals if they don't already have a linked spend line
+  // (to avoid double-counting when invoice has been received and spend line auto-created)
+  const posWithoutSpendLine    = pos.filter(po => !po.spend_line_id);
+  const posWithSpendLine       = pos.filter(po => po.spend_line_id);
+
   const totalSpendPredicted  = spend.reduce((a, s) => a + Number(s.predicted), 0)
-                             + pos.reduce((a, po) => a + Number(po.amount), 0);
+                             + posWithoutSpendLine.reduce((a, po) => a + Number(po.amount), 0);
   const totalSpendActual     = spend.reduce((a, s) => a + Number(s.actual || 0), 0)
-                             + pos.filter(po => po.actual_amount != null).reduce((a, po) => a + Number(po.actual_amount), 0)
-                             + pos.filter(po => po.status === 'Paid' && po.actual_amount == null).reduce((a, po) => a + Number(po.amount), 0);
+                             + posWithoutSpendLine.filter(po => po.actual_amount != null).reduce((a, po) => a + Number(po.actual_amount), 0)
+                             + posWithoutSpendLine.filter(po => po.status === 'Paid' && po.actual_amount == null).reduce((a, po) => a + Number(po.amount), 0);
   const netPredicted = totalIncomePredicted - totalSpendPredicted;
   const netActual    = totalIncomeActual    - totalSpendActual;
 
