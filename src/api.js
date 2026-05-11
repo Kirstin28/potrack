@@ -151,6 +151,14 @@ router.put('/pos/:id', async (req, res) => {
       WHERE id=$11
     `, [supplier, project_id||null, description||'', amount||0, status, due_date||'', invoiced||false, invoiced_date||'', paid||false, paid_date||'', req.params.id]);
 
+    // If marked as paid, also update the linked spend line
+    if (paid) {
+      await pool.query(`
+        UPDATE project_spend SET paid=true, paid_date=$1
+        WHERE id = (SELECT spend_line_id FROM purchase_orders WHERE id=$2) AND spend_line_id IS NOT NULL
+      `, [paid_date||'', req.params.id]);
+    }
+
     const { rows } = await pool.query(`
       SELECT po.*, p.name AS project_name, p.job_num
       FROM purchase_orders po LEFT JOIN projects p ON po.project_id = p.id
