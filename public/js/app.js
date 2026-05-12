@@ -956,11 +956,18 @@ function renderDetailBody(data, infoBar) {
   }, 0);
   const vatNetPosition  = vatOnIncome - vatReclaimable;
 
-  const totalSpendPredicted  = spend.reduce((a, s) => a + Number(s.predicted), 0)
-                             + posWithoutSpendLine.reduce((a, po) => a + Number(po.amount), 0);
-  const totalSpendActual     = spend.reduce((a, s) => a + Number(s.actual || 0), 0)
-                             + posWithoutSpendLine.filter(po => po.actual_amount != null).reduce((a, po) => a + Number(po.actual_amount), 0)
-                             + posWithoutSpendLine.filter(po => po.status === 'Paid' && po.actual_amount == null).reduce((a, po) => a + Number(po.amount), 0);
+  // Spend lines auto-created from POs start with "PO:" — don't also count the raw PO amount
+  const autoSpendIds    = spend.filter(s => s.description && s.description.startsWith('PO:')).map(s => s.id);
+  const spendLinePoIds  = pos.filter(po => po.spend_line_id).map(po => po.spend_line_id);
+  // POs not yet invoiced (no spend line) contribute their amount to predicted
+  const uninvoicedPOs   = pos.filter(po => !po.spend_line_id);
+
+  const totalSpendPredicted = spend.reduce((a, s) => a + Number(s.predicted), 0)
+                            + uninvoicedPOs.reduce((a, po) => a + Number(po.amount), 0);
+
+  const totalSpendActual    = spend.reduce((a, s) => a + Number(s.actual || 0), 0)
+                            + uninvoicedPOs.filter(po => po.status === 'Paid').reduce((a, po) => a + Number(po.invoice_amount || po.amount), 0);
+
   const netPredicted = totalIncomePredicted - totalSpendPredicted;
   const netActual    = totalIncomeActual    - totalSpendActual;
 
